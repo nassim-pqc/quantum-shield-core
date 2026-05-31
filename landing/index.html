@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Shield Core — Post-Quantum Cryptography Microservice</title>
+    <meta name="description" content="Enterprise-grade post-quantum cryptographic microservice. ML-KEM-768 (Kyber768) + AES-256-GCM. Rust native core, FastAPI, Kubernetes-ready.">
+    <meta name="keywords" content="post-quantum, cryptography, kyber768, ml-kem-768, aes-gcm, rust, microservice, nist, pqc">
+    <meta property="og:title" content="Quantum Shield Core">
+    <meta property="og:description" content="Enterprise post-quantum cryptographic enclave. NIST FIPS 203 compliant.">
+    <meta property="og:type" content="website">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230ea5e9'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>Q</text></svg>">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">◈ Quantum Shield Core</a>
+            <div class="nav-links">
+                <a href="#architecture">Architecture</a>
+                <a href="#benchmarks">Benchmarks</a>
+                <a href="#use-cases">Use Cases</a>
+                <a href="/docs">Docs</a>
+                <a href="/demo" class="btn-outline">Live Demo</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <span class="badge">NIST FIPS 203 — ML-KEM-768</span>
+                <h1>Post-Quantum Cryptography<br><span class="accent">as a Microservice</span></h1>
+                <p class="subtitle">Production-ready cryptographic enclave. Zero-trust audit trail. Memory-safe Rust core.</p>
+                <div class="hero-actions">
+                    <a href="/demo" class="btn-primary">Try Live Demo →</a>
+                    <a href="https://github.com/quantum-shield/core" class="btn-secondary">GitHub</a>
+                </div>
+                <div class="stats">
+                    <div class="stat"><strong>139</strong> tests</div>
+                    <div class="stat"><strong>3</strong> SDKs</div>
+                    <div class="stat"><strong>99.9%</strong> uptime target</div>
+                    <div class="stat"><strong>∞</strong> quantum-resistant</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="architecture" class="section">
+        <div class="container">
+            <h2>Architecture</h2>
+            <div class="diagram-wrapper">
+                <pre class="mermaid">
+┌──────────────┐     ┌─────────────────────────────────────────────┐
+│  Client SDK  │────▶│         Quantum Shield Core API              │
+│  (Python/Go) │     │  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
+└──────────────┘     │  │  Rust     │  │  Python  │  │  Audit    │ │
+                     │  │  Crypto   │  │  KEM     │  │  Store    │ │
+                     │  │  Engine   │  │  (Kyber) │  │  (HMAC)   │ │
+                     │  └──────────┘  └──────────┘  └───────────┘ │
+                     └──────────────────────┬──────────────────────┘
+                                            │
+                                    ┌───────▼───────┐
+                                    │   PostgreSQL  │
+                                    │  (Audit Log)  │
+                                    └───────────────┘
+                </pre>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>ML-KEM-768</h3>
+                    <p>NIST-standard key encapsulation. 1184 bytes public key, 2400 bytes secret key. Level 3 security.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>AES-256-GCM</h3>
+                    <p>Authenticated encryption with AAD binding. Context-linked ciphertext for zero-trust workloads.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Rust Core</h3>
+                    <p>Memory-safe crypto engine. PyO3 bindings. Panic-abort on release. Constant-time HMAC.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Signed Audit</h3>
+                    <p>Append-only, HMAC-SHA256 signed audit trail. Key rotation. Hash-chain ready.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="benchmarks" class="section dark">
+        <div class="container">
+            <h2>Performance Benchmarks</h2>
+            <p class="section-subtitle">Measured on standard VPS (4 vCPU, 8 GB RAM). Results are reproducible.</p>
+            <div class="benchmarks-grid">
+                <div class="benchmark-card">
+                    <div class="metric">Key Generation</div>
+                    <div class="value">~8 ms</div>
+                    <div class="label">ML-KEM-768 keypair</div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="metric">Seal (1 KB)</div>
+                    <div class="value">~5 ms</div>
+                    <div class="label">Hybrid encrypt</div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="metric">Seal (1 MB)</div>
+                    <div class="value">~12 ms</div>
+                    <div class="label">Hybrid encrypt</div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="metric">Unseal (1 KB)</div>
+                    <div class="value">~5 ms</div>
+                    <div class="label">Hybrid decrypt</div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="metric">Audit Log</div>
+                    <div class="value">~3 ms</div>
+                    <div class="label">HMAC sign + store</div>
+                </div>
+                <div class="benchmark-card">
+                    <div class="metric">Concurrency</div>
+                    <div class="value">500+</div>
+                    <div class="label">Requests/sec (10 users)</div>
+                </div>
+            </div>
+            <p class="benchmark-note"><a href="/docs/benchmarks">Full benchmark methodology →</a></p>
+        </div>
+    </section>
+
+    <section id="use-cases" class="section">
+        <div class="container">
+            <h2>Use Cases</h2>
+            <div class="use-cases-grid">
+                <div class="use-case">
+                    <h3>🔐 Data-in-Transit Protection</h3>
+                    <p>Hybrid PQC encryption for sensitive payloads between microservices, APIs, and data pipelines.</p>
+                </div>
+                <div class="use-case">
+                    <h3>📋 Compliance Audit Trail</h3>
+                    <p>Tamper-evident, HMAC-signed audit logs for NIS2, PCI-DSS, SOC 2, and ISO 27001 compliance.</p>
+                </div>
+                <div class="use-case">
+                    <h3>🛡️ Zero-Trust Cryptography</h3>
+                    <p>Stateless design — no private keys stored server-side. Context-bound AAD for workload identity.</p>
+                </div>
+                <div class="use-case">
+                    <h3>🔑 Key Management Integration</h3>
+                    <p>Pluggable KMS abstraction: local env, AWS KMS, HashiCorp Vault, Azure Key Vault.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section cta">
+        <div class="container">
+            <h2>Ready to evaluate?</h2>
+            <p>Deploy a live demo in under 30 minutes. Single Docker command.</p>
+            <div class="cta-actions">
+                <a href="/demo" class="btn-primary">Interactive Demo →</a>
+                <a href="/api/v1/audit/logs" class="btn-secondary">Live API Health</a>
+            </div>
+            <div class="code-sample">
+                <pre><code>docker run -p 8000:8000 \
+  -e AUDIT_KEY="your-32-byte-key-here-xxxxxxxxx" \
+  -e API_KEY_OPERATOR="operator-key-change-me" \
+  ghcr.io/quantum-shield/core:latest</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div>
+                    <h4>Quantum Shield Core</h4>
+                    <p>Post-quantum cryptography microservice.</p>
+                </div>
+                <div>
+                    <h4>Documentation</h4>
+                    <ul>
+                        <li><a href="/docs/API_GUIDE.md">API Guide</a></li>
+                        <li><a href="/docs/ARCHITECTURE.md">Architecture</a></li>
+                        <li><a href="/docs/SECURITY_GUIDE.md">Security</a></li>
+                        <li><a href="/docs/adr">ADRs</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>SDKs</h4>
+                    <ul>
+                        <li><a href="/sdk">Python SDK</a></li>
+                        <li><a href="/sdk-go">Go SDK</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 Quantum Shield Core — MIT License</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

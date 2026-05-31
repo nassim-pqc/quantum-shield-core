@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "quantum-shield.fullname" . }}
+  labels:
+    {{- include "quantum-shield.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      {{- toYaml .Values.strategy.rollingUpdate | nindent 6 }}
+  selector:
+    matchLabels:
+      {{- include "quantum-shield.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.opentelemetry.enabled }}
+        instrumentation.opentelemetry.io/inject-python: "true"
+        {{- end }}
+      labels:
+        {{- include "quantum-shield.labels" . | nindent 8 }}
+        {{- include "quantum-shield.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "quantum-shield.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quantum-shield.fullname" . }}
+                  key: database-url
+            - name: AUDIT_KEY_v1
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quantum-shield.fullname" . }}
+                  key: audit-key-v1
+            - name: ACTIVE_AUDIT_KEY_VERSION
+              value: {{ .Values.env.ACTIVE_AUDIT_KEY_VERSION | quote }}
+            - name: API_KEY_OPERATOR
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quantum-shield.fullname" . }}
+                  key: api-key-operator
+            - name: API_KEY_AUDITOR
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quantum-shield.fullname" . }}
+                  key: api-key-auditor
+            - name: KMS_PROVIDER
+              value: {{ .Values.env.KMS_PROVIDER | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: ENABLE_DOCS
+              value: {{ .Values.env.ENABLE_DOCS | quote }}
+            - name: ENABLE_HSTS
+              value: {{ .Values.env.ENABLE_HSTS | quote }}
+            - name: ALLOWED_ORIGINS
+              value: {{ .Values.env.ALLOWED_ORIGINS | quote }}
+            - name: UVICORN_WORKERS
+              value: {{ .Values.env.UVICORN_WORKERS | quote }}
+            - name: UVICORN_TIMEOUT_KEEP_ALIVE
+              value: {{ .Values.env.UVICORN_TIMEOUT_KEEP_ALIVE | quote }}
+            {{- if .Values.opentelemetry.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.opentelemetry.endpoint | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.opentelemetry.serviceName | quote }}
+            - name: OTEL_EXPORTER_INSECURE
+              value: {{ .Values.opentelemetry.insecure | quote }}
+            {{- end }}
+            {{- if eq .Values.env.KMS_PROVIDER "vault" }}
+            - name: VAULT_ADDR
+              value: {{ .Values.env.VAULT_ADDR | quote }}
+            - name: VAULT_KV_PATH
+              value: {{ .Values.env.VAULT_KV_PATH | quote }}
+            - name: VAULT_KV_MOUNT
+              value: {{ .Values.env.VAULT_KV_MOUNT | quote }}
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quantum-shield.fullname" . }}
+                  key: vault-token
+            {{- end }}
+            {{- if eq .Values.env.KMS_PROVIDER "aws" }}
+            - name: AWS_REGION
+              value: {{ .Values.env.AWS_REGION | quote }}
+            - name: AWS_KMS_KEY_ID
+              value: {{ .Values.env.AWS_KMS_KEY_ID | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.startup.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+        {{- if .Values.vaultSidecar.enabled }}
+        - name: vault-agent
+          image: {{ .Values.vaultSidecar.image }}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: VAULT_ADDR
+              value: {{ .Values.env.VAULT_ADDR | quote }}
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quantum-shield.fullname" . }}
+                  key: vault-token
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /etc/secrets
+              readOnly: true
+        {{- end }}
+      {{- if .Values.vaultSidecar.enabled }}
+      volumes:
+        - name: vault-secrets
+          emptyDir:
+            medium: Memory
+      {{- end }}

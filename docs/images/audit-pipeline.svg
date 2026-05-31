@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 280" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="820" height="280" fill="#f4f6f9"/>
+  <text x="410" y="28" text-anchor="middle" fill="#1a2b42" font-size="15" font-weight="600">Audit Trail Pipeline (append-only)</text>
+  <rect x="40" y="55" width="130" height="60" rx="5" fill="#fff" stroke="#2c5282" stroke-width="2"/>
+  <text x="105" y="82" text-anchor="middle" fill="#1a2b42" font-size="11" font-weight="600">Crypto / API</text>
+  <text x="105" y="100" text-anchor="middle" fill="#5a6b7d" font-size="10">event</text>
+  <rect x="210" y="55" width="150" height="60" rx="5" fill="#fff" stroke="#2c5282" stroke-width="2"/>
+  <text x="285" y="82" text-anchor="middle" fill="#1a2b42" font-size="11" font-weight="600">generate_signed_log</text>
+  <text x="285" y="100" text-anchor="middle" fill="#5a6b7d" font-size="10">HMAC-SHA256 + key_version</text>
+  <rect x="400" y="55" width="130" height="60" rx="5" fill="#fff" stroke="#2d6a4f" stroke-width="2"/>
+  <text x="465" y="82" text-anchor="middle" fill="#1a2b42" font-size="11" font-weight="600">store_log</text>
+  <text x="465" y="100" text-anchor="middle" fill="#5a6b7d" font-size="10">seq + entry_hash</text>
+  <rect x="570" y="55" width="120" height="60" rx="5" fill="#fff" stroke="#2d6a4f" stroke-width="2"/>
+  <text x="630" y="88" text-anchor="middle" fill="#1a2b42" font-size="11" font-weight="600">PostgreSQL</text>
+  <rect x="210" y="160" width="150" height="60" rx="5" fill="#fff" stroke="#6b4c9a" stroke-width="2"/>
+  <text x="285" y="187" text-anchor="middle" fill="#1a2b42" font-size="11" font-weight="600">GET /audit/logs</text>
+  <text x="285" y="205" text-anchor="middle" fill="#5a6b7d" font-size="10">verify_log on read</text>
+  <rect x="400" y="160" width="130" height="60" rx="5" fill="#fff" stroke="#6b4c9a" stroke-width="2"/>
+  <text x="465" y="195" text-anchor="middle" fill="#1a2b42" font-size="11" font-weight="600">integrity OK/FAIL</text>
+  <path d="M170 85 L208 85" stroke="#2c5282" stroke-width="2" marker-end="url(#m)"/>
+  <path d="M360 85 L398 85" stroke="#2c5282" stroke-width="2" marker-end="url(#m)"/>
+  <path d="M530 85 L568 85" stroke="#2c5282" stroke-width="2" marker-end="url(#m)"/>
+  <path d="M630 115 L630 145 L465 145 L465 158" stroke="#6b4c9a" stroke-width="2" marker-end="url(#m)"/>
+  <path d="M360 190 L398 190" stroke="#6b4c9a" stroke-width="2" marker-end="url(#m)"/>
+  <defs><marker id="m" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2c5282"/></marker></defs>
+</svg>

@@ -1,0 +1,67 @@
+# Quantum Shield Core — Docker Compose (PostgreSQL + API)
+name: quantum-shield
+#
+# 1. cp .env.example .env
+# 2. Set secrets in .env
+# 3. docker compose up --build
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: qshield_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qshield}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-quantum_shield}
+    volumes:
+      - qshield_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qshield} -d ${POSTGRES_DB:-quantum_shield}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 256m
+
+  quantum-shield-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qshield_enclave
+    image: quantum-shield:latest
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-qshield}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quantum_shield}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  qshield_pgdata:
+    driver: local

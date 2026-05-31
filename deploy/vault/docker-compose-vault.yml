@@ -1,0 +1,125 @@
+# Quantum Shield Core + HashiCorp Vault integration
+# =================================================
+# Production-grade stack with Vault KV v2 for audit key management.
+#
+# Usage:
+#   cp .env.vault.example .env.vault
+#   docker compose -f deploy/vault/docker-compose-vault.yml up --build
+#
+# This demonstrates the Vault KMS provider integration in action.
+
+name: quantum-shield-vault
+
+services:
+
+  vault:
+    image: hashicorp/vault:1.16
+    container_name: qshield_vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:-root-token-quantum-shield-2025}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "127.0.0.1:8200:8200"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    config:
+      # Dev mode — for production, use proper Vault configuration
+      storage:
+        file:
+          path: /vault/file
+
+  vault-init:
+    image: hashicorp/vault:1.16
+    container_name: qshield_vault_init
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:-root-token-quantum-shield-2025}
+    entrypoint: >
+      sh -c "
+        echo '=== Enabling KV v2 secrets engine ===' &&
+        vault secrets enable -path=secret kv-v2 &&
+        echo '=== Storing audit keys ===' &&
+        vault kv put secret/quantum-shield/audit-keys \
+          v1=\"$${AUDIT_KEY_v1}\" \
+          v2=\"$${AUDIT_KEY_v2:-}\" &&
+        echo '=== Vault initialized successfully ==='
+      "
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:-root-token-quantum-shield-2025}
+      AUDIT_KEY_v1: ${AUDIT_KEY_v1:-replace-with-32-char-audit-key-v1}
+      AUDIT_KEY_v2: ${AUDIT_KEY_v2}
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: qshield_vault_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qshield}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-quantum_shield}
+    volumes:
+      - qshield_vault_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qshield}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 256m
+
+  quantum-shield-api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: qshield_vault_api
+    image: quantum-shield:latest
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-qshield}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-quantum_shield}
+      KMS_PROVIDER: vault
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:-root-token-quantum-shield-2025}
+      VAULT_KV_PATH: quantum-shield/audit-keys
+      VAULT_KV_MOUNT: secret
+      ACTIVE_AUDIT_KEY_VERSION: v1
+      AUDIT_KEY_v1: ${AUDIT_KEY_v1:-replace-with-32-char-audit-key-v1}
+      API_KEY_OPERATOR: ${API_KEY_OPERATOR:?Set API_KEY_OPERATOR}
+      API_KEY_AUDITOR: ${API_KEY_AUDITOR:?Set API_KEY_AUDITOR}
+      ENABLE_DOCS: "true"
+      LOG_LEVEL: "DEBUG"
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64M,mode=1777
+
+volumes:
+  qshield_vault_pgdata:
+    driver: local

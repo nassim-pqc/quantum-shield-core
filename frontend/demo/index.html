@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Shield Core — Live Demo</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230ea5e9'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>Q</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0b1120; color: #f1f5f9; line-height: 1.6;
+        }
+        .container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+        header { text-align: center; padding: 40px 0 20px; }
+        header h1 { font-size: 2rem; font-weight: 700; color: #0ea5e9; }
+        header p { color: #94a3b8; margin-top: 8px; }
+        .card {
+            background: #1a2332; border: 1px solid #1e293b;
+            border-radius: 12px; padding: 28px; margin: 20px 0;
+        }
+        .card h2 { font-size: 1.1rem; margin-bottom: 16px; color: #0ea5e9; }
+        .config-row {
+            display: flex; gap: 12px; align-items: center;
+            background: #111827; padding: 12px 16px; border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .config-row label { font-size: 0.9rem; color: #94a3b8; min-width: 100px; }
+        .config-row input {
+            flex: 1; background: #0b1120; border: 1px solid #1e293b;
+            border-radius: 6px; padding: 8px 12px; color: #f1f5f9; font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .btn {
+            padding: 10px 24px; border-radius: 8px; font-weight: 600;
+            border: none; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #0ea5e9; color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: #38bdf8; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-success:hover:not(:disabled) { background: #4ade80; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover:not(:disabled) { background: #f87171; }
+        .btn-outline {
+            background: transparent; border: 1px solid #1e293b; color: #94a3b8;
+        }
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; }
+        textarea {
+            width: 100%; min-height: 80px;
+            background: #0b1120; border: 1px solid #1e293b;
+            border-radius: 8px; padding: 12px; color: #f1f5f9;
+            font-family: monospace; font-size: 0.85rem; resize: vertical;
+        }
+        .output { margin-top: 16px; }
+        .output-label { font-size: 0.8rem; color: #64748b; margin-bottom: 4px; }
+        .output-value {
+            background: #0b1120; border: 1px solid #1e293b;
+            border-radius: 8px; padding: 12px; font-family: monospace;
+            font-size: 0.8rem; color: #94a3b8; word-break: break-all;
+            max-height: 120px; overflow-y: auto;
+        }
+        .status-bar {
+            display: flex; gap: 24px; padding: 12px 0;
+            font-size: 0.85rem; color: #64748b; border-top: 1px solid #1e293b;
+            margin-top: 16px;
+        }
+        .status-bar .ok { color: #22c55e; }
+        .status-bar .fail { color: #ef4444; }
+        .error { color: #ef4444; font-size: 0.85rem; margin-top: 8px; }
+        .hidden { display: none; }
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-success { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .badge-warning { background: rgba(234, 179, 8, 0.1); color: #eab308; }
+        .footer { text-align: center; padding: 40px 0; color: #64748b; font-size: 0.85rem; }
+        .footer a { color: #0ea5e9; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>◈ Quantum Shield Core</h1>
+            <p>Interactive Demo — ML-KEM-768 + AES-256-GCM Hybrid Encryption</p>
+        </header>
+
+        <div id="step-keygen" class="card">
+            <h2>1. Generate Key Pair</h2>
+            <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:16px;">Generate a post-quantum ML-KEM-768 key pair. The private key is never stored server-side.</p>
+            <div class="btn-group">
+                <button id="btn-gen-keys" class="btn btn-primary" onclick="generateKeys()">Generate Keys</button>
+            </div>
+            <div id="keygen-output" class="output hidden">
+                <div class="output-label">Public Key (Base64)</div>
+                <div id="pub-key-display" class="output-value"></div>
+                <div class="output-label" style="margin-top:8px;">Private Key (Base64) — store securely</div>
+                <div id="priv-key-display" class="output-value"></div>
+            </div>
+            <div id="keygen-timing" class="status-bar hidden">
+                <span>⏱ <span id="keygen-ms">0</span> ms</span>
+                <span class="ok">✓ Keys generated</span>
+            </div>
+        </div>
+
+        <div id="step-seal" class="card">
+            <h2>2. Encrypt (Seal)</h2>
+            <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:16px;">Enter a message, then encrypt it with the recipient's public key.</p>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.85rem;color:#94a3b8;">Message to encrypt</label>
+                <textarea id="plaintext-input" placeholder="Enter your confidential message here...">Hello, this is a secret message protected by post-quantum cryptography!</textarea>
+            </div>
+            <div>
+                <label style="font-size:0.85rem;color:#94a3b8;">Context (AAD) — binds ciphertext to a specific context</label>
+                <textarea id="context-input" placeholder="e.g., contract-2025-001" style="min-height:40px;">demo-context-001</textarea>
+            </div>
+            <div class="btn-group" style="margin-top:12px;">
+                <button id="btn-seal" class="btn btn-success" onclick="seal()" disabled>Encrypt</button>
+            </div>
+            <div id="seal-output" class="output hidden">
+                <div class="output-label">Ciphertext (PQC)</div>
+                <div id="ciphertext-display" class="output-value"></div>
+                <div class="output-label" style="margin-top:8px;">Nonce (Base64)</div>
+                <div id="nonce-display" class="output-value"></div>
+                <div class="output-label" style="margin-top:8px;">Encrypted Data (Base64)</div>
+                <div id="encrypted-display" class="output-value"></div>
+            </div>
+            <div id="seal-timing" class="status-bar hidden">
+                <span>⏱ <span id="seal-ms">0</span> ms</span>
+                <span class="ok">✓ Data encrypted</span>
+            </div>
+            <div id="seal-error" class="error hidden"></div>
+        </div>
+
+        <div id="step-unseal" class="card">
+            <h2>3. Decrypt (Unseal)</h2>
+            <p style="color:#94a3b8;font-size:0.9rem;margin-bottom:16px;">Decrypt with the matching private key and context.</p>
+            <div class="btn-group">
+                <button id="btn-unseal" class="btn btn-danger" onclick="unseal()" disabled>Decrypt</button>
+                <button class="btn btn-outline" onclick="resetDemo()">Reset</button>
+            </div>
+            <div id="unseal-output" class="output hidden">
+                <div class="output-label">Recovered Plaintext</div>
+                <div id="plaintext-recovered" class="output-value" style="color:#22c55e;"></div>
+            </div>
+            <div id="unseal-timing" class="status-bar hidden">
+                <span>⏱ <span id="unseal-ms">0</span> ms</span>
+                <span class="ok">✓ Data decrypted successfully</span>
+            </div>
+            <div id="unseal-error" class="error hidden"></div>
+        </div>
+
+        <div class="card" style="text-align:center;border-color:#0ea5e9;">
+            <p style="color:#94a3b8;font-size:0.9rem;">
+                ⚡ This demo makes real API calls to Quantum Shield Core.<br>
+                All data is temporary — nothing is persisted.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><a href="/">← Back to homepage</a> &middot; Quantum Shield Core &copy; 2026</p>
+        </div>
+    </div>
+
+    <script>
+        let state = { pubKey: null, privKey: null, sealed: null };
+
+        const API = window.location.origin;
+
+        async function request(method, path, body) {
+            const resp = await fetch(API + path, {
+                method, headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': 'demo-operator-key-insecure-for-demo-only'
+                },
+                body: body ? JSON.stringify(body) : undefined
+            });
+            if (!resp.ok) {
+                const err = await resp.text();
+                let detail;
+                try { detail = JSON.parse(err).detail || err; }
+                catch (e) { detail = err; }
+                throw new Error(detail || `HTTP ${resp.status}`);
+            }
+            return resp.json();
+        }
+
+        async function generateKeys() {
+            const btn = document.getElementById('btn-gen-keys');
+            btn.disabled = true; btn.textContent = 'Generating...';
+            try {
+                const start = performance.now();
+                const data = await request('POST', '/api/v1/keys/generate');
+                const ms = (performance.now() - start).toFixed(1);
+
+                state.pubKey = data.public_key_b64;
+                state.privKey = data.private_key_b64;
+
+                document.getElementById('pub-key-display').textContent = data.public_key_b64.slice(0, 80) + '...';
+                document.getElementById('priv-key-display').textContent = '••••••••' + data.private_key_b64.slice(-20);
+                document.getElementById('keygen-output').classList.remove('hidden');
+                document.getElementById('keygen-timing').classList.remove('hidden');
+                document.getElementById('keygen-ms').textContent = ms;
+
+                document.getElementById('btn-seal').disabled = false;
+            } catch (e) {
+                document.getElementById('keygen-output').classList.remove('hidden');
+                document.getElementById('pub-key-display').textContent = 'Error: ' + e.message;
+            } finally {
+                btn.disabled = false; btn.textContent = 'Regenerate Keys';
+            }
+        }
+
+        async function seal() {
+            const btn = document.getElementById('btn-seal');
+            btn.disabled = true; btn.textContent = 'Encrypting...';
+            document.getElementById('seal-error').classList.add('hidden');
+
+            const plaintext = document.getElementById('plaintext-input').value;
+            const context = document.getElementById('context-input').value;
+
+            if (!plaintext) {
+                document.getElementById('seal-error').textContent = 'Please enter a message to encrypt.';
+                document.getElementById('seal-error').classList.remove('hidden');
+                btn.disabled = false; btn.textContent = 'Encrypt';
+                return;
+            }
+
+            try {
+                const start = performance.now();
+                const data = await request('POST', '/api/v1/crypto/seal', {
+                    public_key_b64: state.pubKey,
+                    data_b64: btoa(unescape(encodeURIComponent(plaintext))),
+                    context: context || 'demo-default-context'
+                });
+                const ms = (performance.now() - start).toFixed(1);
+
+                state.sealed = data;
+                document.getElementById('ciphertext-display').textContent = data.ciphertext_pqc_b64.slice(0, 60) + '...';
+                document.getElementById('nonce-display').textContent = data.nonce_b64;
+                document.getElementById('encrypted-display').textContent = data.encrypted_data_b64.slice(0, 60) + '...';
+                document.getElementById('seal-output').classList.remove('hidden');
+                document.getElementById('seal-timing').classList.remove('hidden');
+                document.getElementById('seal-ms').textContent = ms;
+
+                document.getElementById('btn-unseal').disabled = false;
+            } catch (e) {
+                document.getElementById('seal-error').textContent = 'Encryption failed: ' + e.message;
+                document.getElementById('seal-error').classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Encrypt';
+            }
+        }
+
+        async function unseal() {
+            const btn = document.getElementById('btn-unseal');
+            btn.disabled = true; btn.textContent = 'Decrypting...';
+            document.getElementById('unseal-error').classList.add('hidden');
+
+            const context = document.getElementById('context-input').value;
+
+            try {
+                const start = performance.now();
+                const data = await request('POST', '/api/v1/crypto/unseal', {
+                    private_key_b64: state.privKey,
+                    ciphertext_pqc_b64: state.sealed.ciphertext_pqc_b64,
+                    nonce_b64: state.sealed.nonce_b64,
+                    encrypted_data_b64: state.sealed.encrypted_data_b64,
+                    context: context || 'demo-default-context'
+                });
+                const ms = (performance.now() - start).toFixed(1);
+
+                const decoded = decodeURIComponent(escape(atob(data.decrypted_data_b64)));
+                document.getElementById('plaintext-recovered').textContent = decoded;
+                document.getElementById('unseal-output').classList.remove('hidden');
+                document.getElementById('unseal-timing').classList.remove('hidden');
+                document.getElementById('unseal-ms').textContent = ms;
+            } catch (e) {
+                document.getElementById('unseal-error').textContent = 'Decryption failed: ' + e.message;
+                document.getElementById('unseal-error').classList.remove('hidden');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Decrypt';
+            }
+        }
+
+        function resetDemo() {
+            state = { pubKey: null, privKey: null, sealed: null };
+            document.getElementById('keygen-output').classList.add('hidden');
+            document.getElementById('keygen-timing').classList.add('hidden');
+            document.getElementById('seal-output').classList.add('hidden');
+            document.getElementById('seal-timing').classList.add('hidden');
+            document.getElementById('seal-error').classList.add('hidden');
+            document.getElementById('unseal-output').classList.add('hidden');
+            document.getElementById('unseal-timing').classList.add('hidden');
+            document.getElementById('unseal-error').classList.add('hidden');
+            document.getElementById('btn-gen-keys').textContent = 'Generate Keys';
+            document.getElementById('btn-seal').disabled = true;
+            document.getElementById('btn-unseal').disabled = true;
+        }
+    </script>
+</body>
+</html>

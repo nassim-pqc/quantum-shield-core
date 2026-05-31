@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 340" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="800" height="340" fill="#f4f6f9"/>
+  <text x="400" y="30" text-anchor="middle" fill="#1a2b42" font-size="16" font-weight="600">Docker Compose Deployment</text>
+  <rect x="80" y="60" width="640" height="200" rx="8" fill="#e8edf3" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="400" y="85" text-anchor="middle" fill="#5a6b7d" font-size="12">Host (127.0.0.1:8000)</text>
+  <rect x="120" y="110" width="240" height="120" rx="6" fill="#fff" stroke="#2c5282" stroke-width="2"/>
+  <text x="240" y="140" text-anchor="middle" fill="#1a2b42" font-size="13" font-weight="600">quantum-shield-api</text>
+  <text x="240" y="160" text-anchor="middle" fill="#5a6b7d" font-size="10">non-root, read-only FS</text>
+  <text x="240" y="176" text-anchor="middle" fill="#5a6b7d" font-size="10">uvicorn, alembic migrate</text>
+  <text x="240" y="200" text-anchor="middle" fill="#5a6b7d" font-size="10">768M limit, cap_drop ALL</text>
+  <rect x="440" y="110" width="240" height="120" rx="6" fill="#fff" stroke="#2d6a4f" stroke-width="2"/>
+  <text x="560" y="140" text-anchor="middle" fill="#1a2b42" font-size="13" font-weight="600">postgres:16-alpine</text>
+  <text x="560" y="160" text-anchor="middle" fill="#5a6b7d" font-size="10">volume: qshield_pgdata</text>
+  <text x="560" y="176" text-anchor="middle" fill="#5a6b7d" font-size="10">healthcheck: pg_isready</text>
+  <path d="M360 170 L438 170" stroke="#2c5282" stroke-width="2" marker-end="url(#d)"/>
+  <text x="399" y="162" text-anchor="middle" fill="#5a6b7d" font-size="10">asyncpg</text>
+  <rect x="200" y="280" width="400" height="40" rx="4" fill="#fff" stroke="#94a3b8"/>
+  <text x="400" y="305" text-anchor="middle" fill="#1a2b42" font-size="12">.env secrets never baked into image</text>
+  <defs><marker id="d" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2c5282"/></marker></defs>
+</svg>

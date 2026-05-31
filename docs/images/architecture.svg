@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 360" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="820" height="360" fill="#f4f6f9"/>
+  <text x="410" y="32" text-anchor="middle" fill="#1a2b42" font-size="16" font-weight="600">System Architecture</text>
+  <rect x="50" y="70" width="150" height="80" rx="6" fill="#fff" stroke="#2c5282" stroke-width="2"/>
+  <text x="125" y="105" text-anchor="middle" fill="#1a2b42" font-size="13" font-weight="600">Integrator</text>
+  <text x="125" y="125" text-anchor="middle" fill="#5a6b7d" font-size="11">ESN / OEM / App</text>
+  <rect x="260" y="55" width="220" height="110" rx="6" fill="#fff" stroke="#2c5282" stroke-width="2"/>
+  <text x="370" y="95" text-anchor="middle" fill="#1a2b42" font-size="14" font-weight="600">Quantum Shield API</text>
+  <text x="370" y="115" text-anchor="middle" fill="#5a6b7d" font-size="11">FastAPI � Async</text>
+  <text x="370" y="132" text-anchor="middle" fill="#5a6b7d" font-size="11">SecurityEngine � Audit</text>
+  <rect x="540" y="70" width="110" height="80" rx="6" fill="#fff" stroke="#4a6fa5" stroke-width="2"/>
+  <text x="595" y="108" text-anchor="middle" fill="#1a2b42" font-size="12" font-weight="600">liboqs 0.14</text>
+  <text x="595" y="128" text-anchor="middle" fill="#5a6b7d" font-size="10">Kyber768</text>
+  <rect x="680" y="70" width="100" height="80" rx="6" fill="#fff" stroke="#4a6fa5" stroke-width="2"/>
+  <text x="730" y="108" text-anchor="middle" fill="#1a2b42" font-size="12" font-weight="600">KMS</text>
+  <text x="730" y="128" text-anchor="middle" fill="#5a6b7d" font-size="10">Local / Cloud</text>
+  <rect x="300" y="220" width="180" height="90" rx="6" fill="#fff" stroke="#2d6a4f" stroke-width="2"/>
+  <text x="390" y="260" text-anchor="middle" fill="#1a2b42" font-size="13" font-weight="600">PostgreSQL 16</text>
+  <text x="390" y="280" text-anchor="middle" fill="#5a6b7d" font-size="11">Alembic migrations</text>
+  <rect x="520" y="220" width="150" height="90" rx="6" fill="#fff" stroke="#6b4c9a" stroke-width="2"/>
+  <text x="595" y="260" text-anchor="middle" fill="#1a2b42" font-size="13" font-weight="600">Observability</text>
+  <text x="595" y="280" text-anchor="middle" fill="#5a6b7d" font-size="11">Prometheus � OTEL</text>
+  <path d="M200 110 L258 110" stroke="#2c5282" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M480 110 L538 110" stroke="#2c5282" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M390 165 L390 218" stroke="#2d6a4f" stroke-width="2" marker-end="url(#a)"/>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2c5282"/></marker></defs>
+</svg>

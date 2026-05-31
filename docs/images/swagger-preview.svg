@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="720" height="400" fill="#f8f9fa"/>
+  <rect x="0" y="0" width="720" height="48" fill="#1b1b1b"/>
+  <text x="24" y="30" fill="#fff" font-size="16" font-weight="600">Quantum Shield Enclave API</text>
+  <text x="24" y="68" fill="#3b4151" font-size="13" font-weight="600">v1.0.0</text>
+  <rect x="24" y="85" width="200" height="280" fill="#fff" stroke="#dee2e6"/>
+  <text x="36" y="110" fill="#3b4151" font-size="11" font-weight="600">System</text>
+  <text x="44" y="130" fill="#49cc90" font-size="10">GET /health</text>
+  <text x="44" y="148" fill="#49cc90" font-size="10">GET /metrics</text>
+  <text x="36" y="175" fill="#3b4151" font-size="11" font-weight="600">Cryptography</text>
+  <text x="44" y="195" fill="#61affe" font-size="10">POST /api/v1/crypto/seal</text>
+  <text x="44" y="213" fill="#61affe" font-size="10">POST /api/v1/crypto/unseal</text>
+  <text x="36" y="240" fill="#3b4151" font-size="11" font-weight="600">Audit Trail</text>
+  <text x="44" y="260" fill="#61affe" font-size="10">GET /api/v1/audit/logs</text>
+  <rect x="240" y="85" width="456" height="280" fill="#fff" stroke="#dee2e6"/>
+  <text x="256" y="115" fill="#3b4151" font-size="12" font-weight="600">POST /api/v1/crypto/seal</text>
+  <text x="256" y="140" fill="#6b7280" font-size="10">Hybrid encrypt  Kyber768 + AES-256-GCM</text>
+  <rect x="256" y="160" width="400" height="100" rx="4" fill="#f6f8fa" stroke="#e1e4e8"/>
+  <text x="268" y="182" fill="#24292e" font-size="9" font-family="monospace">"context": "contract-2025-001"</text>
+  <text x="268" y="198" fill="#24292e" font-size="9" font-family="monospace">"data_b64": "SGVsbG8="</text>
+  <text x="256" y="290" fill="#6b7280" font-size="10">Enable: ENABLE_DOCS=true � /docs</text>
+</svg>

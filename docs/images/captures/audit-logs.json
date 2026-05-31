@@ -1,0 +1,29 @@
+[
+    {
+        "id": 11,
+        "action": "DOC_CAPTURE",
+        "target": "release-screenshot",
+        "actor": "operator",
+        "log_json": "{\"action\": \"DOC_CAPTURE\", \"key_version\": \"v1\", \"target\": \"release-screenshot\", \"timestamp\": \"2026-05-28T18:53:59.876172+00:00\", \"user\": \"operator\"}",
+        "signature": "9a4119b6486d6751f3e21a7bc9ea037ac04bce037a71403af38edc1de5434f7e",
+        "integrity": "\ud83d\udee1\ufe0f OK"
+    },
+    {
+        "id": 10,
+        "action": "KEY_GENERATE",
+        "target": "keypair",
+        "actor": "operator",
+        "log_json": "{\"action\": \"KEY_GENERATE\", \"key_version\": \"v1\", \"target\": \"keypair\", \"timestamp\": \"2026-05-28T18:53:59.798944+00:00\", \"user\": \"operator\"}",
+        "signature": "ea53ba7cb66145753cd2ed78e8764cb741ec78ad56e1396d95f3f9978c688613",
+        "integrity": "\ud83d\udee1\ufe0f OK"
+    },
+    {
+        "id": 9,
+        "action": "DEMO",
+        "target": "demo.sh",
+        "actor": "operator",
+        "log_json": "{\"action\": \"DEMO\", \"key_version\": \"v1\", \"target\": \"demo.sh\", \"timestamp\": \"2026-05-28T18:23:13.646672+00:00\", \"user\": \"operator\"}",
+        "signature": "101a04579a5093c8455c935cb3583822575b9df411321e8a7ddfc289f7c5df42",
+        "integrity": "\ud83d\udee1\ufe0f OK"
+    }
+]

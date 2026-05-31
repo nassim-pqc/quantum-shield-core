@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum Shield — Tableau de bord d'audit</title>
+<style>
+  :root {
+    --bg:        #0a0e1a;
+    --surface:   #111827;
+    --surface2:  #1a2235;
+    --border:    #1e2d45;
+    --accent:    #3b82f6;
+    --accent2:   #6366f1;
+    --ok:        #10b981;
+    --fail:      #ef4444;
+    --warn:      #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --font:      'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+
+  .version-badge {
+    background: rgba(59,130,246,0.15);
+    border: 1px solid rgba(59,130,246,0.3);
+    color: var(--accent);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .api-key-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    color: var(--text);
+    font-size: 0.82rem;
+    width: 300px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-key-input:focus { border-color: var(--accent); }
+  .api-key-input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ---- Layout ---- */
+  .main { max-width: 1280px; margin: 0 auto; padding: 2rem; }
+
+  /* ---- Stats ---- */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .stat-card.blue::before  { background: var(--accent); }
+  .stat-card.green::before { background: var(--ok); }
+  .stat-card.red::before   { background: var(--fail); }
+  .stat-card.warn::before  { background: var(--warn); }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .stat-card.blue  .stat-value { color: var(--accent); }
+  .stat-card.green .stat-value { color: var(--ok); }
+  .stat-card.red   .stat-value { color: var(--fail); }
+  .stat-card.warn  .stat-value { color: var(--warn); }
+
+  .stat-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.4rem;
+  }
+
+  /* ---- Table Section ---- */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .section-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+  }
+
+  .section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .filter-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* ---- Table ---- */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  thead th {
+    background: var(--surface2);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+  td {
+    padding: 0.8rem 1rem;
+    vertical-align: middle;
+  }
+
+  .td-id { color: var(--muted); font-family: monospace; }
+
+  .action-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .action-SEAL    { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .action-UNSEAL  { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+  .action-KEY_GENERATE { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+  .action-default { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+
+  .integrity-ok {
+    color: var(--ok);
+    font-weight: 700;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .integrity-fail {
+    color: var(--fail);
+    font-weight: 700;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .sig-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .target-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ---- States ---- */
+  .state-message {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+  }
+
+  .state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .state-text { font-size: 0.9rem; }
+
+  /* ---- Spinner ---- */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Toast ---- */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.2s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: var(--ok); color: #fff; }
+  .toast.error   { background: var(--fail); color: #fff; }
+
+  /* ---- Status indicator ---- */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 6px var(--ok);
+    animation: pulse 2s ease-in-out infinite;
+    display: inline-block;
+  }
+
+  .status-dot.offline { background: var(--fail); box-shadow: 0 0 6px var(--fail); animation: none; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <span>Quantum Shield</span>
+    <span class="version-badge">v4.0 · ENCLAVE</span>
+  </div>
+  <div class="header-right">
+    <span id="statusIndicator" style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--muted)">
+      <span class="status-dot offline" id="statusDot"></span>
+      <span id="statusText">Non connecté</span>
+    </span>
+    <input
+      type="password"
+      class="api-key-input"
+      id="apiKeyInput"
+      placeholder="Clé API (X-API-Key)"
+      autocomplete="off"
+    />
+    <button class="btn btn-primary" onclick="loadData()">
+      <span id="btnIcon">↻</span> Actualiser
+    </button>
+  </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="main">
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card blue">
+      <div class="stat-label">Total des entrées</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">journaux d'audit signés</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Intégrité OK</div>
+      <div class="stat-value" id="statOk">—</div>
+      <div class="stat-sub">signatures valides</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Intégrité FAIL</div>
+      <div class="stat-value" id="statFail">—</div>
+      <div class="stat-sub">falsifications détectées</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="stat-label">Opérations Seal</div>
+      <div class="stat-value" id="statSeal">—</div>
+      <div class="stat-sub">chiffrements effectués</div>
+    </div>
+  </div>
+
+  <!-- Audit Table -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        📋 Journal d'audit cryptographique
+      </div>
+      <div class="filter-bar">
+        <select class="filter-select" id="filterAction" onchange="applyFilter()">
+          <option value="">Toutes les actions</option>
+          <option value="SEAL">SEAL</option>
+          <option value="UNSEAL">UNSEAL</option>
+          <option value="KEY_GENERATE">KEY_GENERATE</option>
+        </select>
+        <select class="filter-select" id="filterIntegrity" onchange="applyFilter()">
+          <option value="">Toute l'intégrité</option>
+          <option value="ok">🛡️ OK</option>
+          <option value="fail">🚨 FAIL</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Action</th>
+            <th>Contexte / Cible</th>
+            <th>Acteur</th>
+            <th>Horodatage</th>
+            <th>Signature HMAC</th>
+            <th>Intégrité</th>
+          </tr>
+        </thead>
+        <tbody id="logTable">
+          <tr>
+            <td colspan="7">
+              <div class="state-message">
+                <div class="state-icon">🔑</div>
+                <div class="state-text">Entrez votre clé API et cliquez sur Actualiser</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  let allLogs = [];
+
+  // ---- API call ----
+  async function fetchLogs(apiKey) {
+    const response = await fetch('/api/v1/audit/logs?limit=200', {
+      headers: { 'X-API-Key': apiKey }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  }
+
+  // ---- Load data ----
+  async function loadData() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (!apiKey) { showToast('Entrez votre clé API', 'error'); return; }
+
+    const btn = document.querySelector('.btn-primary');
+    const icon = document.getElementById('btnIcon');
+    btn.disabled = true;
+    icon.innerHTML = '<span class="spinner"></span>';
+
+    try {
+      allLogs = await fetchLogs(apiKey);
+
+      // Update status
+      document.getElementById('statusDot').classList.remove('offline');
+      document.getElementById('statusText').textContent = 'Connecté';
+
+      updateStats(allLogs);
+      renderTable(allLogs);
+      showToast(`${allLogs.length} entrée(s) chargée(s)`, 'success');
+    } catch (err) {
+      document.getElementById('statusDot').classList.add('offline');
+      document.getElementById('statusText').textContent = 'Erreur de connexion';
+      showToast(`Erreur : ${err.message}`, 'error');
+      renderEmpty('Impossible de charger les journaux. Vérifiez votre clé API.');
+    } finally {
+      btn.disabled = false;
+      icon.textContent = '↻';
+    }
+  }
+
+  // ---- Stats ----
+  function updateStats(logs) {
+    const ok   = logs.filter(l => l.integrity.includes('OK')).length;
+    const fail = logs.filter(l => l.integrity.includes('FAIL')).length;
+    const seal = logs.filter(l => l.action === 'SEAL').length;
+
+    document.getElementById('statTotal').textContent = logs.length;
+    document.getElementById('statOk').textContent    = ok;
+    document.getElementById('statFail').textContent  = fail;
+    document.getElementById('statSeal').textContent  = seal;
+  }
+
+  // ---- Filter ----
+  function applyFilter() {
+    const action    = document.getElementById('filterAction').value;
+    const integrity = document.getElementById('filterIntegrity').value;
+
+    let filtered = allLogs;
+    if (action)    filtered = filtered.filter(l => l.action === action);
+    if (integrity === 'ok')   filtered = filtered.filter(l => l.integrity.includes('OK'));
+    if (integrity === 'fail') filtered = filtered.filter(l => l.integrity.includes('FAIL'));
+
+    renderTable(filtered);
+  }
+
+  // ---- Render ----
+  function renderTable(logs) {
+    const tbody = document.getElementById('logTable');
+
+    if (logs.length === 0) {
+      renderEmpty('Aucune entrée ne correspond aux filtres.');
+      return;
+    }
+
+    const actionClass = (action) => {
+      const map = { SEAL: 'action-SEAL', UNSEAL: 'action-UNSEAL', KEY_GENERATE: 'action-KEY_GENERATE' };
+      return map[action] || 'action-default';
+    };
+
+    const parseTimestamp = (logJson) => {
+      try {
+        const log = JSON.parse(logJson);
+        return new Date(log.timestamp).toLocaleString('fr-FR', {
+          dateStyle: 'short', timeStyle: 'medium'
+        });
+      } catch { return '—'; }
+    };
+
+    tbody.innerHTML = logs.map(log => `
+      <tr>
+        <td class="td-id">${log.id}</td>
+        <td>
+          <span class="action-badge ${actionClass(log.action)}">${log.action}</span>
+        </td>
+        <td class="target-cell" title="${escHtml(log.target)}">${escHtml(log.target)}</td>
+        <td>${escHtml(log.actor)}</td>
+        <td style="white-space:nowrap;color:var(--muted);font-size:0.78rem">${parseTimestamp(log.log_json)}</td>
+        <td class="sig-cell" title="${escHtml(log.signature)}">${log.signature.substring(0,16)}…</td>
+        <td>
+          ${log.integrity.includes('OK')
+            ? `<span class="integrity-ok">✅ OK</span>`
+            : `<span class="integrity-fail">🚨 FAIL</span>`
+          }
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderEmpty(msg) {
+    document.getElementById('logTable').innerHTML = `
+      <tr><td colspan="7">
+        <div class="state-message">
+          <div class="state-icon">📭</div>
+          <div class="state-text">${escHtml(msg)}</div>
+        </div>
+      </td></tr>`;
+  }
+
+  // ---- Toast ----
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  // ---- XSS protection ----
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ---- Auto-refresh toutes les 60s si connecté ----
+  setInterval(() => {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (key && !document.getElementById('statusDot').classList.contains('offline')) {
+      loadData();
+    }
+  }, 60000);
+</script>
+</body>
+</html>

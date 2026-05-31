@@ -1,0 +1,11 @@
+{
+    "id": 11,
+    "log": {
+        "timestamp": "2026-05-28T18:53:59.876172+00:00",
+        "action": "DOC_CAPTURE",
+        "target": "release-screenshot",
+        "user": "operator",
+        "key_version": "v1"
+    },
+    "signature": "9a4119b6486d6751f3e21a7bc9ea037ac04bce037a71403af38edc1de5434f7e"
+}
