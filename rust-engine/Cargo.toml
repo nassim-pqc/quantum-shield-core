@@ -1,0 +1,60 @@
+[package]
+name = "quantum-shield-engine"
+version = "1.0.0"
+edition = "2021"
+description = "Core cryptographic engine for Quantum Shield — memory-safe, auditable, post-quantum crypto"
+authors = ["Quantum Shield Team"]
+license = "Proprietary"
+repository = "https://github.com/quantum-shield/core"
+keywords = ["pqc", "post-quantum", "cryptography", "kyber", "security"]
+categories = ["cryptography", "security"]
+
+[lib]
+name = "quantum_shield_engine"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Cryptography
+aes-gcm = "0.10"
+rand = "0.8"
+sha2 = "0.10"
+hmac = "0.12"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "1"
+
+# Logging
+log = "0.4"
+
+# Hex encoding
+hex = "0.4"
+
+# PyO3 (Python bindings)
+pyo3 = { version = "0.21", features = ["extension-module"], optional = true }
+
+# Async runtime for Python compatibility (optional)
+tokio = { version = "1", features = ["rt", "macros"], optional = true }
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3"
+
+[[bench]]
+name = "crypto_bench"
+harness = false
+
+[features]
+default = ["python-bindings"]
+python-bindings = ["pyo3"]
+async-support = ["tokio"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
