@@ -19,6 +19,14 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from constants import AES_GCM_NONCE_BYTES, MIN_AUDIT_KEY_BYTES, PQC_ALGORITHM
 from observability.tracing import trace_crypto
 
+# Try to import Rust engine for constant-time HMAC and AES-GCM
+_RUST_ENGINE_AVAILABLE = False
+try:
+    import quantum_shield_engine
+    _RUST_ENGINE_AVAILABLE = True
+except ImportError:
+    pass
+
 
 # --- KMS Abstraction ---
 class AbstractKMS:
@@ -68,6 +76,14 @@ class SecurityEngine:
                 f"Active audit key '{active_key_version}' not found in KMS."
             )
 
+        # Initialize Rust engine for HMAC/AES-GCM if available
+        self._rust_engine = None
+        if _RUST_ENGINE_AVAILABLE and audit_key is not None:
+            try:
+                self._rust_engine = quantum_shield_engine.SecurityEngine.with_audit_key(audit_key)
+            except Exception:
+                pass
+
     # ------------------------------------------------------------------
     # Post-quantum key encapsulation (ML-KEM-768 / Kyber768)
     # ------------------------------------------------------------------
@@ -89,9 +105,17 @@ class SecurityEngine:
         with oqs.KeyEncapsulation(self.pqc_alg) as kem:
             ciphertext_pqc, shared_secret = kem.encap_secret(public_key)
 
-        aes_key = hashlib.sha256(shared_secret).digest()
-        nonce = os.urandom(AES_GCM_NONCE_BYTES)
-        encrypted_data = AESGCM(aes_key).encrypt(nonce, plaintext, context)
+        if self._rust_engine is not None:
+            try:
+                nonce, encrypted_data = self._rust_engine.encrypt_aes_gcm(shared_secret, plaintext, context)
+            except Exception:
+                aes_key = hashlib.sha256(shared_secret).digest()
+                nonce = os.urandom(AES_GCM_NONCE_BYTES)
+                encrypted_data = AESGCM(aes_key).encrypt(nonce, plaintext, context)
+        else:
+            aes_key = hashlib.sha256(shared_secret).digest()
+            nonce = os.urandom(AES_GCM_NONCE_BYTES)
+            encrypted_data = AESGCM(aes_key).encrypt(nonce, plaintext, context)
 
         return {
             "ciphertext_pqc": ciphertext_pqc,
@@ -112,8 +136,15 @@ class SecurityEngine:
         with oqs.KeyEncapsulation(self.pqc_alg, secret_key=private_key) as kem:
             shared_secret = kem.decap_secret(ciphertext_pqc)
 
-        aes_key = hashlib.sha256(shared_secret).digest()
-        return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
+        if self._rust_engine is not None:
+            try:
+                return self._rust_engine.decrypt_aes_gcm(shared_secret, nonce, encrypted_data, context)
+            except Exception:
+                aes_key = hashlib.sha256(shared_secret).digest()
+                return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
+        else:
+            aes_key = hashlib.sha256(shared_secret).digest()
+            return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
 
     # ------------------------------------------------------------------
     # Signed audit trail (HMAC-SHA256, key versioning)
@@ -134,6 +165,20 @@ class SecurityEngine:
         }
 
         log_bytes = json.dumps(log_data, sort_keys=True).encode("utf-8")
+
+        if self._rust_engine is not None:
+            try:
+                log_json_str, signature, key_version = self._rust_engine.generate_signed_log(
+                    action, target, user
+                )
+                return {
+                    "log": json.loads(log_json_str),
+                    "signature": signature,
+                    "key_version": key_version,
+                }
+            except Exception:
+                pass
+
         active_key = self.kms.get_audit_key(self.active_key_version)
         if active_key is None:
             raise ValueError(
@@ -149,6 +194,12 @@ class SecurityEngine:
 
     def verify_log(self, log_json_str: str, signature: str) -> bool:
         """Verify HMAC signature, supporting key rotation."""
+        if self._rust_engine is not None:
+            try:
+                return self._rust_engine.verify_log(log_json_str, signature)
+            except Exception:
+                pass
+
         try:
             log_data = json.loads(log_json_str)
             key_version = log_data.get("key_version", "v1")

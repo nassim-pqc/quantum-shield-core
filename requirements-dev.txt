@@ -8,3 +8,4 @@ bandit==1.7.9
 semgrep==1.74.0
 pip-audit==2.7.3
 locust==2.31.0
+maturin==1.5.1
