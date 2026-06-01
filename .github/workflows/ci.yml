@@ -4,43 +4,7 @@ name: CI
 on:
   push:
     branches: [main, develop]
-  test-python:
-    name: Tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install Python dependencies
-        run: |
-          pip install -r requirements-dev.txt
-
-      - name: Build Rust engine (PyO3)
-        working-directory: rust-engine
-        continue-on-error: true
-        run: |
-          pip install maturin
-          maturin develop
-
-      - name: Run tests
-        run: pytest tests/ -v --tb=short -x
-        env:
-          AUDIT_KEY: "test-audit-key-secure-enough-for-pytest-32chars!"
-          API_KEY_OPERATOR: "test-operator-api-key-secure-enough-32chars!!"
-          API_KEY_AUDITOR: "test-auditor-api-key-secure-enough-32chars!!!"
-          DATABASE_URL: "sqlite+aiosqlite:///./test_ci.db"  pull_request:
+  pull_request:
     branches: [main]
 
 env:
@@ -96,17 +60,22 @@ jobs:
       - name: Install liboqs
         run: |
           sudo apt-get update
-          sudo apt-get install -y liboqs-dev
+          sudo apt-get install -y cmake ninja-build libssl-dev
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git
+          cd liboqs
+          mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          ninja
+          sudo ninja install
+          sudo ldconfig
       - name: Install Python dependencies
         run: pip install -r requirements-dev.txt
-- name: Install liboqs
-  continue-on-error: true
-  run: |
-    sudo apt-get update
-    sudo apt-get install -y liboqs-dev || true      - name: Build Rust engine (PyO3)
+      - name: Build Rust engine (PyO3)
         working-directory: rust-engine
         continue-on-error: true
-        run: maturin develop
+        run: |
+          pip install maturin
+          maturin develop
       - name: Run tests
         run: pytest tests/ -v --tb=short -x
         env:
