@@ -35,6 +35,7 @@ from constants import (
     IntegrityDisplay,
 )
 from database import AsyncSessionLocal, check_db_connection, engine, get_db, init_db
+from enterprise import license as _ent_license
 from models import ApiKey, AuditLog
 from observability import (
     AUDIT_WRITES,
@@ -48,6 +49,17 @@ from security_engine import LocalEnvKMS, SecurityEngine
 
 load_dotenv()
 configure_logging()
+
+# ---------------------------------------------------------------------------
+# Enterprise license check
+# ---------------------------------------------------------------------------
+ENTERPRISE_LICENSED: bool = _ent_license.validate_license_key()
+
+if ENTERPRISE_LICENSED:
+    logger.info("enterprise_license_active", extra={"key_prefix": os.environ.get("QSC_LICENSE_KEY", "")[:8]})
+else:
+    logger.info("enterprise_license_inactive", extra={"detail": "Community edition (in-memory audit, no AWS/Vault KMS)"})
+
 
 # ---------------------------------------------------------------------------
 # KMS bootstrap (fail-secure)
@@ -69,14 +81,16 @@ def _bootstrap_kms_keys() -> dict[str, bytes]:
 
 def _create_kms_provider(keys: dict[str, bytes]):
     provider = os.environ.get("KMS_PROVIDER", "local").lower()
-    if provider == "aws":
-        from providers.kms.aws_kms import AWSKMSProvider
-        return AWSKMSProvider()
-    if provider == "vault":
-        from providers.kms.vault_kms import HashiCorpVaultKMSProvider
-        return HashiCorpVaultKMSProvider()
-    if provider == "azure":
-        from providers.kms.azure_kms import AzureKeyVaultProvider
+    if provider in ("aws", "vault", "azure"):
+        if not ENTERPRISE_LICENSED:
+            _ent_license.require_enterprise_license()  # raises HTTPException 402
+        if provider == "aws":
+            from enterprise.kms.aws_kms import AWSKMSProvider
+            return AWSKMSProvider()
+        if provider == "vault":
+            from enterprise.kms.vault_kms import HashiCorpVaultKMSProvider
+            return HashiCorpVaultKMSProvider()
+        from enterprise.kms.azure_kms import AzureKeyVaultProvider
         return AzureKeyVaultProvider()
     return LocalEnvKMS(keys)
 
@@ -106,7 +120,7 @@ async def lifespan(app: FastAPI):
         await _seed_api_key(db, "API_KEY_OPERATOR", "operator", "System Operator")
         await _seed_api_key(db, "API_KEY_AUDITOR", "auditor", "System Auditor")
         await db.commit()
-    logger.info("quantum_shield_started", extra={"version": API_VERSION})
+    logger.info("quantum_shield_started", extra={"version": API_VERSION, "enterprise": ENTERPRISE_LICENSED})
     yield
     logger.info("quantum_shield_shutdown", extra={"version": API_VERSION})
     await engine.dispose()

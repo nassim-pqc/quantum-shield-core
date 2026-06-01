@@ -9,6 +9,9 @@ os.environ.setdefault(
     "AUDIT_KEY", "test-audit-key-secure-enough-for-pytest-32chars!"
 )
 os.environ.setdefault(
+    "QSC_LICENSE_KEY", "QSC-ENT-TEST-FAKE-12345678-87654321"
+)
+os.environ.setdefault(
     "API_KEY_OPERATOR", "test-operator-api-key-secure-enough-32chars!!"
 )
 os.environ.setdefault(
@@ -27,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from database import Base, get_db
 from main import app, crypto_engine
 from models import ApiKey
+import audit_store
 
 OPERATOR_KEY = os.environ["API_KEY_OPERATOR"]
 AUDITOR_KEY = os.environ["API_KEY_AUDITOR"]
@@ -35,6 +39,13 @@ AUDITOR_HEADERS = {"X-API-Key": AUDITOR_KEY}
 INVALID_HEADERS = {"X-API-Key": "this-key-does-not-exist-and-is-invalid"}
 TEST_CONTEXT = "test-aad-context-document-42"
 TEST_MESSAGE = b"Message ultra-confidentiel pour les tests Quantum Shield."
+
+
+@pytest.fixture(autouse=True)
+def reset_audit_store():
+    """Reset the in-memory audit store before each test."""
+    audit_store._store = audit_store._InMemoryStore()
+    yield
 
 
 @pytest_asyncio.fixture
