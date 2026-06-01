@@ -35,7 +35,12 @@ from constants import (
     IntegrityDisplay,
 )
 from database import AsyncSessionLocal, check_db_connection, engine, get_db, init_db
-from enterprise import license as _ent_license
+
+# Enterprise license validation (stub for open-source)
+def _validate_license_key() -> bool:
+    """Check if a valid enterprise license key is configured."""
+    license_key = os.environ.get("QSC_LICENSE_KEY", "")
+    return license_key.startswith("QSC-ENT-") and len(license_key) >= 32
 from models import ApiKey, AuditLog
 from observability import (
     AUDIT_WRITES,
@@ -53,7 +58,7 @@ configure_logging()
 # ---------------------------------------------------------------------------
 # Enterprise license check
 # ---------------------------------------------------------------------------
-ENTERPRISE_LICENSED: bool = _ent_license.validate_license_key()
+ENTERPRISE_LICENSED: bool = _validate_license_key()
 
 if ENTERPRISE_LICENSED:
     logger.info("enterprise_license_active", extra={"key_prefix": os.environ.get("QSC_LICENSE_KEY", "")[:8]})
