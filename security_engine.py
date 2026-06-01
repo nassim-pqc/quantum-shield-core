@@ -27,6 +27,12 @@ try:
 except ImportError:
     pass
 
+import logging as _logging
+_logging.getLogger(__name__).info(
+    "rust_engine_status",
+    extra={"loaded": _RUST_ENGINE_AVAILABLE}
+)
+
 
 # --- KMS Abstraction ---
 class AbstractKMS:
