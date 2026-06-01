@@ -6,7 +6,7 @@
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](pyproject.toml)
-[![Rust](https://img.shields.io/badge/rust-stable-orange)](rust-engine/Cargo.toml)
+[![Rust](https://img.shields.io/badge/rust-compiled%20%E2%9C%93-orange)](rust-engine/Cargo.toml)
 [![ML-KEM](https://img.shields.io/badge/pqc-ML--KEM--768-purple)](docs/adr/001-ml-kem-768.md)
 
 Enterprise post-quantum cryptographic microservice — **ML-KEM-768** (Kyber768) + **AES-256-GCM** hybrid encryption.
