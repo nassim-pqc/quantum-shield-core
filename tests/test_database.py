@@ -1,6 +1,7 @@
 """
 test_database.py — Tests for database connection and initialization.
 """
+
 import os
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")

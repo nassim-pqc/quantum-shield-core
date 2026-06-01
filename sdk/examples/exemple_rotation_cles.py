@@ -4,8 +4,9 @@ Exemple 3 — Rotation de clés et re-chiffrement
 Cas d'usage enterprise : rotation périodique des clés PQC sans perte
 de données, conformément aux politiques de sécurité NIS2 / ISO 27001.
 """
+
 import os
-import base64
+
 from sdk import QuantumShieldClient
 
 client = QuantumShieldClient(
@@ -23,7 +24,7 @@ context = "brevet-formulation-2026-xyz"
 print("[1] Encrypting with generation N keys...")
 keys_gen_n = client.generate_keypair()
 sealed_gen_n = client.seal(keys_gen_n["public_key_b64"], secret_data, context)
-print(f"  ✔ Data encrypted with generation N key")
+print("  ✔ Data encrypted with generation N key")
 print(f"  Public key N : {keys_gen_n['public_key_b64'][:40]}...")
 
 # 2. Generate new keypair (rotation to generation N+1)
@@ -36,7 +37,7 @@ print("\n[3] Re-encryption (unseal N → seal N+1)...")
 plaintext_recovered = client.unseal(keys_gen_n["private_key_b64"], sealed_gen_n, context)
 assert plaintext_recovered == secret_data, "Error during re-encryption"
 sealed_gen_n1 = client.seal(keys_gen_n1["public_key_b64"], plaintext_recovered, context)
-print(f"  ✔ Data re-encrypted with generation N+1 key")
+print("  ✔ Data re-encrypted with generation N+1 key")
 
 # 4. Final verification
 final_data = client.unseal(keys_gen_n1["private_key_b64"], sealed_gen_n1, context)
@@ -45,10 +46,6 @@ print("\n  ✔ Data integrity verified after rotation")
 print("  ✔ Old key (N) can be safely revoked")
 
 # 5. Log the rotation to audit trail
-client.write_audit_log(
-    action="KEY_ROTATION",
-    target=context,
-    user="responsable-securite"
-)
+client.write_audit_log(action="KEY_ROTATION", target=context, user="responsable-securite")
 print("\n  ✔ Rotation logged to NIS2 audit trail")
 print("\n✔ Key rotation completed.\n")

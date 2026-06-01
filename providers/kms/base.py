@@ -7,6 +7,7 @@ Two distinct capabilities:
 
 Both AWSKMSProvider and HashiCorpVaultKMSProvider implement both interfaces.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -46,8 +47,7 @@ class KeyWrapper(ABC):
         ...
 
     @abstractmethod
-    def health_check(self) -> dict[str, Any]:
-        ...
+    def health_check(self) -> dict[str, Any]: ...
 
 
 class SecretProvider(ABC):
@@ -71,6 +71,7 @@ class KMSProvider(KeyWrapper, SecretProvider):
     """
     Combined interface: a KMS provider can both wrap DEKs and serve audit keys.
     """
+
     pass
 
 

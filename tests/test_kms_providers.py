@@ -7,6 +7,7 @@ Uses:
 
 All tests are fully isolated — no external infrastructure required.
 """
+
 from __future__ import annotations
 
 import base64
@@ -20,13 +21,13 @@ import respx
 from moto import mock_aws
 
 from providers.kms.aws_kms import AWSKMSProvider
+from providers.kms.base import KeyWrapperAuthError, KeyWrapperError
 from providers.kms.vault_kms import HashiCorpVaultKMSProvider
-from providers.kms.base import KeyWrapperError, KeyWrapperAuthError
-
 
 # ===================================================================
 # Fixtures
 # ===================================================================
+
 
 @pytest.fixture
 def aws_credentials() -> None:
@@ -43,6 +44,7 @@ def aws_kms_client(aws_credentials: None) -> Any:
     """Create a mock AWS KMS client and return the underlying moto backend."""
     with mock_aws():
         import boto3
+
         client = boto3.Session(region_name="eu-west-1").client("kms", region_name="eu-west-1")
         # Create a CMK for testing
         key = client.create_key(
@@ -93,6 +95,7 @@ def dek_bytes() -> bytes:
 # ===================================================================
 # AWS KMS Tests
 # ===================================================================
+
 
 class TestAWSKMSWrap:
     """Test AWS KMS DEK wrapping/unwrapping."""
@@ -191,6 +194,7 @@ class TestAWSKMSAuditKey:
 # Vault Transit Engine Tests (via respx)
 # ===================================================================
 
+
 class TestVaultWrap:
     """Test Vault Transit Engine DEK wrapping/unwrapping."""
 
@@ -215,7 +219,9 @@ class TestVaultWrap:
             unwrapped = vault_provider.unwrap_key(wrapped)
             assert unwrapped == dek_bytes
 
-    def test_wrap_vault_auth_error(self, vault_provider: HashiCorpVaultKMSProvider, dek_bytes: bytes):
+    def test_wrap_vault_auth_error(
+        self, vault_provider: HashiCorpVaultKMSProvider, dek_bytes: bytes
+    ):
         """Vault 403 should raise KeyWrapperAuthError."""
         with respx.mock:
             respx.post("http://localhost:8200/v1/transit/encrypt/quantum-shield-dek").respond(403)
@@ -228,7 +234,9 @@ class TestVaultWrap:
         with pytest.raises(KeyWrapperError):
             vault_provider.unwrap_key("not-valid")
 
-    def test_wrap_vault_connection_error(self, vault_provider: HashiCorpVaultKMSProvider, dek_bytes: bytes):
+    def test_wrap_vault_connection_error(
+        self, vault_provider: HashiCorpVaultKMSProvider, dek_bytes: bytes
+    ):
         """Connection refused should eventually raise KeyWrapperError after retries."""
         import httpx
 

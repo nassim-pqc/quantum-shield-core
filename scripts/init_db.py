@@ -6,6 +6,7 @@ Usage:
   python scripts/init_db.py
   DATABASE_URL=postgresql+asyncpg://... python scripts/init_db.py
 """
+
 import asyncio
 import hashlib
 import os

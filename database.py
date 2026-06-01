@@ -5,6 +5,7 @@ Backends (DATABASE_URL):
   - SQLite (dev/tests): sqlite+aiosqlite:///./quantum_shield.db
   - PostgreSQL (prod):  postgresql+asyncpg://user:pass@host:5432/dbname
 """
+
 import os
 
 from sqlalchemy import text

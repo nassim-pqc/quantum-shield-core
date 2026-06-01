@@ -9,6 +9,7 @@ Usage:
   python benchmarks/run_benchmarks.py
   python benchmarks/run_benchmarks.py --iterations 30 --output benchmarks/BENCHMARK_RESULTS.md
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,15 +20,13 @@ import resource
 import statistics
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from security_engine import LocalEnvKMS, SecurityEngine
 
-AUDIT_KEY = os.environ.get(
-    "AUDIT_KEY", "benchmark-audit-key-minimum-32-bytes-long!"
-).encode()
+AUDIT_KEY = os.environ.get("AUDIT_KEY", "benchmark-audit-key-minimum-32-bytes-long!").encode()
 
 PAYLOAD_SIZES = [
     (1024, "1 KB"),
@@ -100,13 +99,13 @@ def bench_engine(iterations: int) -> dict:
 
 
 def write_report(results: dict, output_path: str, iterations: int) -> None:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# Quantum Shield Core — Benchmark Results",
         "",
         f"**Generated:** {ts}  ",
         f"**Host:** {platform.system()} {platform.machine()} — Python {platform.python_version()}  ",
-        f"**Algorithm:** ML-KEM-768 (Kyber768) + AES-256-GCM  ",
+        "**Algorithm:** ML-KEM-768 (Kyber768) + AES-256-GCM  ",
         f"**Iterations per payload:** {iterations}  ",
         "",
         "## Summary Table",
@@ -154,6 +153,7 @@ def write_chart(results: dict, output_dir: str) -> None:
     """Generate matplotlib visualization of benchmark results."""
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
@@ -172,7 +172,7 @@ def write_chart(results: dict, output_dir: str) -> None:
     fig.suptitle(
         "Quantum Shield — Cryptographic Performance (ML-KEM-768 + AES-256-GCM)",
         fontsize=14,
-        fontweight="bold"
+        fontweight="bold",
     )
 
     # Seal latency

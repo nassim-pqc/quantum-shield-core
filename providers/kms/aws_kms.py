@@ -17,13 +17,15 @@ Environment Variables:
     KMS_RETRY_MAX            Max retry delay seconds (default: 10.0)
     AUDIT_KEY_ENCRYPTED_V1   Base64-encoded encrypted audit key blob (optional)
 """
+
 from __future__ import annotations
 
 import base64
 import json
+import logging as _logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from tenacity import (
@@ -34,13 +36,11 @@ from tenacity import (
     wait_exponential,
 )
 
-import logging as _logging
-
 from providers.kms.base import (
-    KMSProvider,
     KeyWrapperAuthError,
     KeyWrapperError,
     KeyWrapperTransientError,
+    KMSProvider,
 )
 
 _logger = _logging.getLogger(__name__)
@@ -130,7 +130,6 @@ class AWSKMSClient:
 
     def _classify_error(self, exc: Exception) -> KeyWrapperError:
         """Classify a boto3 exception into domain exceptions."""
-        import botocore.errorfactory as ef
         msg = str(exc)
 
         # Use class names since moto may not expose the same exception attributes
@@ -144,14 +143,24 @@ class AWSKMSClient:
             return KeyWrapperError(f"AWS KMS key disabled: {self._config.key_id}")
         if exc_class == "PendingImportException":
             return KeyWrapperError(f"AWS KMS key pending import: {self._config.key_id}")
-        if exc_class in ("InvalidKeyUsageException", "InvalidCiphertextException", "InvalidGrantIdException", "InvalidGrantTokenException"):
+        if exc_class in (
+            "InvalidKeyUsageException",
+            "InvalidCiphertextException",
+            "InvalidGrantIdException",
+            "InvalidGrantTokenException",
+        ):
             return KeyWrapperError(f"AWS KMS key usage error: {msg}")
         if exc_class == "UnsupportedOperationException":
             return KeyWrapperError(f"AWS KMS unsupported operation: {msg}")
         if exc_class == "KMSInvalidStateException":
             return KeyWrapperTransientError(f"AWS KMS invalid state (retriable): {msg}")
-        if exc_class in ("KMSInternalException", "CloudHsmClusterException", "CloudHsmClusterNotActiveException",
-                         "CloudHsmClusterInvalidConfigurationException", "CloudHsmClusterNotRelatedException"):
+        if exc_class in (
+            "KMSInternalException",
+            "CloudHsmClusterException",
+            "CloudHsmClusterNotActiveException",
+            "CloudHsmClusterInvalidConfigurationException",
+            "CloudHsmClusterNotRelatedException",
+        ):
             return KeyWrapperTransientError(f"AWS KMS transient: {msg}")
 
         return KeyWrapperTransientError(f"AWS KMS connection error: {msg}")

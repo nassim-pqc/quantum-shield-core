@@ -16,6 +16,7 @@ Usage:
     sealed = client.seal(keypair["public_key_b64"], b"secret data", context="my-doc")
     decrypted = client.unseal(keypair["private_key_b64"], sealed, context="my-doc")
 """
+
 from sdk.client import QuantumShieldClient, QuantumShieldError
 
 __version__ = "1.0.0"

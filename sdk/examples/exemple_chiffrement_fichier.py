@@ -8,9 +8,11 @@ Prérequis :
     pip install requests
     docker compose up (from project root)
 """
+
 import os
 import tempfile
 from pathlib import Path
+
 from sdk import QuantumShieldClient
 
 # Configuration
@@ -29,7 +31,7 @@ print(f"✔ Service operational | Algorithm: {health['algorithm']}")
 print("\n[1] Generating PQC keypair...")
 keypair = client.generate_keypair()
 print(f"  Public key  : {keypair['public_key_b64'][:40]}...")
-print(f"  ⚠️  Private key must be stored securely (HSM, vault, KMS)")
+print("  ⚠️  Private key must be stored securely (HSM, vault, KMS)")
 
 # 3. Create a test file simulating confidential document
 with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
@@ -46,18 +48,19 @@ decrypted_path = source_path + ".dec"
 context = f"document-rh-{Path(source_path).stem}"
 
 # 4. Encrypt file
-print(f"\n[2] Encrypting file...")
+print("\n[2] Encrypting file...")
 print(f"  Source      : {source_path}")
 print(f"  Context AAD : {context}")
 sealed = client.seal_file(keypair["public_key_b64"], source_path, context)
 import json
+
 with open(encrypted_path, "w") as f:
     json.dump(sealed, f)
 print(f"  Encrypted → {encrypted_path}")
 print("  ✔ File encrypted (Kyber768 KEM + AES-256-GCM)")
 
 # 5. Decrypt file
-print(f"\n[3] Decrypting...")
+print("\n[3] Decrypting...")
 with open(encrypted_path) as f:
     sealed_loaded = json.load(f)
 client.unseal_to_file(keypair["private_key_b64"], sealed_loaded, context, decrypted_path)

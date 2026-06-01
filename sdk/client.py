@@ -7,8 +7,9 @@ Provides high-level interface for:
   - Audit trail management
   - Health checks and metrics
 """
+
 import base64
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -16,7 +17,7 @@ import requests
 class QuantumShieldError(Exception):
     """Base exception for Quantum Shield client errors."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+    def __init__(self, message: str, status_code: int | None = None) -> None:
         self.message = message
         self.status_code = status_code
         super().__init__(message)
@@ -46,20 +47,19 @@ class QuantumShieldClient:
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self._session = requests.Session()
-        self._session.headers.update({
-            "X-API-Key": api_key,
-            "Content-Type": "application/json",
-        })
+        self._session.headers.update(
+            {
+                "X-API-Key": api_key,
+                "Content-Type": "application/json",
+            }
+        )
 
     def _request(self, method: str, path: str, **kwargs) -> Any:
         """Execute an HTTP request and handle errors."""
         url = f"{self.api_url}{path}"
         try:
             response = self._session.request(
-                method, url,
-                timeout=self.timeout,
-                verify=self.verify_ssl,
-                **kwargs
+                method, url, timeout=self.timeout, verify=self.verify_ssl, **kwargs
             )
         except requests.exceptions.ConnectionError as e:
             raise QuantumShieldError(
@@ -67,15 +67,16 @@ class QuantumShieldClient:
                 "Verify that docker compose is running."
             ) from e
         except requests.exceptions.Timeout as e:
-            raise QuantumShieldError(
-                f"Timeout after {self.timeout}s on {url}"
-            ) from e
+            raise QuantumShieldError(f"Timeout after {self.timeout}s on {url}") from e
 
         if not response.ok:
-            detail = response.json().get("detail", response.text) if response.content else response.reason
+            detail = (
+                response.json().get("detail", response.text)
+                if response.content
+                else response.reason
+            )
             raise QuantumShieldError(
-                f"API Error {response.status_code}: {detail}",
-                status_code=response.status_code
+                f"API Error {response.status_code}: {detail}", status_code=response.status_code
             )
         return response.json()
 
@@ -91,9 +92,7 @@ class QuantumShieldClient:
         """
         try:
             response = self._session.get(
-                f"{self.base_url}/health",
-                timeout=self.timeout,
-                verify=self.verify_ssl
+                f"{self.base_url}/health", timeout=self.timeout, verify=self.verify_ssl
             )
             response.raise_for_status()
             return response.json()
@@ -147,11 +146,15 @@ class QuantumShieldClient:
                 "encrypted_data_b64": str     # Encrypted data + GCM tag
             }
         """
-        return self._request("POST", "/crypto/seal", json={
-            "public_key_b64": public_key_b64,
-            "data_b64": base64.b64encode(data).decode(),
-            "context": context,
-        })
+        return self._request(
+            "POST",
+            "/crypto/seal",
+            json={
+                "public_key_b64": public_key_b64,
+                "data_b64": base64.b64encode(data).decode(),
+                "context": context,
+            },
+        )
 
     def unseal(
         self,
@@ -175,20 +178,28 @@ class QuantumShieldClient:
         Returns:
             bytes — decrypted data
         """
-        result = self._request("POST", "/crypto/unseal", json={
-            "private_key_b64": private_key_b64,
-            "ciphertext_pqc_b64": sealed["ciphertext_pqc_b64"],
-            "nonce_b64": sealed["nonce_b64"],
-            "encrypted_data_b64": sealed["encrypted_data_b64"],
-            "context": context,
-        })
+        result = self._request(
+            "POST",
+            "/crypto/unseal",
+            json={
+                "private_key_b64": private_key_b64,
+                "ciphertext_pqc_b64": sealed["ciphertext_pqc_b64"],
+                "nonce_b64": sealed["nonce_b64"],
+                "encrypted_data_b64": sealed["encrypted_data_b64"],
+                "context": context,
+            },
+        )
         return base64.b64decode(result["decrypted_data_b64"])
 
-    def seal_text(self, public_key_b64: str, text: str, context: str, encoding: str = "utf-8") -> dict:
+    def seal_text(
+        self, public_key_b64: str, text: str, context: str, encoding: str = "utf-8"
+    ) -> dict:
         """Convenience method: encrypt a string."""
         return self.seal(public_key_b64, text.encode(encoding), context)
 
-    def unseal_text(self, private_key_b64: str, sealed: dict, context: str, encoding: str = "utf-8") -> str:
+    def unseal_text(
+        self, private_key_b64: str, sealed: dict, context: str, encoding: str = "utf-8"
+    ) -> str:
         """Convenience method: decrypt and return a string."""
         return self.unseal(private_key_b64, sealed, context).decode(encoding)
 
@@ -197,7 +208,9 @@ class QuantumShieldClient:
         with open(file_path, "rb") as f:
             return self.seal(public_key_b64, f.read(), context)
 
-    def unseal_to_file(self, private_key_b64: str, sealed: dict, context: str, output_path: str) -> None:
+    def unseal_to_file(
+        self, private_key_b64: str, sealed: dict, context: str, output_path: str
+    ) -> None:
         """Convenience method: decrypt and write to a file."""
         data = self.unseal(private_key_b64, sealed, context)
         with open(output_path, "wb") as f:
@@ -218,16 +231,16 @@ class QuantumShieldClient:
         Returns:
             dict with id, timestamp, and integrity status
         """
-        return self._request("POST", "/audit/log", json={
-            "action": action, "target": target, "user": user
-        })
+        return self._request(
+            "POST", "/audit/log", json={"action": action, "target": target, "user": user}
+        )
 
     def get_audit_logs(
         self,
         skip: int = 0,
         limit: int = 50,
-        action: Optional[str] = None,
-        actor: Optional[str] = None,
+        action: str | None = None,
+        actor: str | None = None,
     ) -> list[dict]:
         """
         Retrieve audit trail entries with integrity verification.

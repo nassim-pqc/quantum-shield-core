@@ -4,7 +4,9 @@ Exemple 2 — Piste d'audit NIS2 avec vérification d'intégrité
 Cas d'usage NIS2 Art. 21 : traçabilité des opérations sur les données
 sensibles avec preuve d'intégrité cryptographique.
 """
+
 import os
+
 from sdk import QuantumShieldClient
 
 client = QuantumShieldClient(
@@ -16,10 +18,10 @@ print("=== Quantum Shield — NIS2 Audit Trail ===\n")
 
 # Simulate workflow operations
 operations = [
-    ("EXPORT",   "rapport-financier-Q2.pdf", "alice.martin"),
-    ("SEAL",     "contrat-fournisseur-42.docx", "bob.dupont"),
-    ("ARCHIVE",  "dossier-patient-RH-001", "systeme-automatise"),
-    ("ACCESS",   "donnees-personnelles-batch", "charlie.leblanc"),
+    ("EXPORT", "rapport-financier-Q2.pdf", "alice.martin"),
+    ("SEAL", "contrat-fournisseur-42.docx", "bob.dupont"),
+    ("ARCHIVE", "dossier-patient-RH-001", "systeme-automatise"),
+    ("ACCESS", "donnees-personnelles-batch", "charlie.leblanc"),
 ]
 
 print("[1] Logging operations to audit trail...")

@@ -9,10 +9,11 @@ Or in headless mode:
     locust -f tests/performance/load_test.py --host=http://localhost:8000 \\
            --headless --users 10 --spawn-rate 1 --run-time 30s
 """
+
 import base64
 import os
 
-from locust import HttpUser, task, between
+from locust import HttpUser, between, task
 
 
 class QuantumShieldUser(HttpUser):

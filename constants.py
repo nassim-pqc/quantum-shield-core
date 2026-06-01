@@ -1,6 +1,7 @@
 """
 constants.py — Shared application constants and enumerations.
 """
+
 from enum import Enum
 
 

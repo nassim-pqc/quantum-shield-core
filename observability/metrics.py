@@ -1,4 +1,5 @@
 """Prometheus custom metrics (complements prometheus-fastapi-instrumentator)."""
+
 from prometheus_client import Counter, Histogram
 
 CRYPTO_OPS = Counter(

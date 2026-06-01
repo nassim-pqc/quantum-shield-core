@@ -1,6 +1,7 @@
 """
 test_auth.py — Tests for authentication and RBAC.
 """
+
 import hashlib
 import os
 
@@ -36,9 +37,17 @@ async def test_db():
         auditor_hash = hashlib.sha256(AUDITOR_KEY.encode()).hexdigest()
         inactive_hash = hashlib.sha256(INACTIVE_KEY.encode()).hexdigest()
 
-        session.add(ApiKey(organization="Test Org", key_hash=operator_hash, role="operator", is_active=True))
-        session.add(ApiKey(organization="Test Org", key_hash=auditor_hash, role="auditor", is_active=True))
-        session.add(ApiKey(organization="Test Org", key_hash=inactive_hash, role="operator", is_active=False))
+        session.add(
+            ApiKey(organization="Test Org", key_hash=operator_hash, role="operator", is_active=True)
+        )
+        session.add(
+            ApiKey(organization="Test Org", key_hash=auditor_hash, role="auditor", is_active=True)
+        )
+        session.add(
+            ApiKey(
+                organization="Test Org", key_hash=inactive_hash, role="operator", is_active=False
+            )
+        )
         await session.commit()
 
         yield session
@@ -54,6 +63,7 @@ class TestGetCurrentRole:
     @pytest.mark.asyncio
     async def test_valid_operator_key_returns_operator_role(self, test_db: AsyncSession):
         """Verify valid operator key returns 'operator' role."""
+
         async def mock_get_db():
             yield test_db
 

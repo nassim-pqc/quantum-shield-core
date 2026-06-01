@@ -11,6 +11,7 @@ Couvre :
   - Détection de falsification des logs
   - Robustesse sur les cas limites (payload vide, payload large)
 """
+
 import hashlib
 import hmac
 import json
@@ -25,6 +26,7 @@ from security_engine import SecurityEngine
 # ---------------------------------------------------------------------------
 AUDIT_KEY = b"test-audit-key-minimum-32-bytes-ok!"
 
+
 @pytest.fixture
 def engine() -> SecurityEngine:
     return SecurityEngine(audit_key=AUDIT_KEY)
@@ -34,7 +36,6 @@ def engine() -> SecurityEngine:
 # Génération de clés
 # ---------------------------------------------------------------------------
 class TestKeyGeneration:
-
     def test_generates_non_empty_keys(self, engine: SecurityEngine):
         pub, priv = engine.generate_keypair()
         assert len(pub) > 0
@@ -65,7 +66,6 @@ class TestKeyGeneration:
 # Chiffrement hybride — Seal
 # ---------------------------------------------------------------------------
 class TestEncryptHybrid:
-
     def test_seal_returns_three_components(self, engine: SecurityEngine):
         pub, _ = engine.generate_keypair()
         result = engine.encrypt_hybrid(pub, b"data", b"ctx")
@@ -106,7 +106,6 @@ class TestEncryptHybrid:
 # Déchiffrement hybride — Unseal
 # ---------------------------------------------------------------------------
 class TestDecryptHybrid:
-
     def test_roundtrip_recovers_original_plaintext(self, engine: SecurityEngine):
         pub, priv = engine.generate_keypair()
         plaintext = b"M&A contract payload - CONFIDENTIAL"
@@ -132,7 +131,7 @@ class TestDecryptHybrid:
 
     def test_wrong_private_key_raises(self, engine: SecurityEngine):
         pub, _ = engine.generate_keypair()
-        _, wrong_priv = engine.generate_keypair()   # Different key pair
+        _, wrong_priv = engine.generate_keypair()  # Different key pair
 
         sealed = engine.encrypt_hybrid(pub, b"data", b"ctx")
 
@@ -156,7 +155,7 @@ class TestDecryptHybrid:
                 sealed["ciphertext_pqc"],
                 sealed["nonce"],
                 sealed["encrypted_data"],
-                b"mauvais-contexte",   # ← contexte altéré
+                b"mauvais-contexte",  # ← contexte altéré
             )
 
     def test_tampered_ciphertext_raises(self, engine: SecurityEngine):
@@ -198,7 +197,6 @@ class TestDecryptHybrid:
 # Audit Trail — Génération et vérification HMAC
 # ---------------------------------------------------------------------------
 class TestAuditTrail:
-
     def test_signed_log_has_required_fields(self, engine: SecurityEngine):
         result = engine.generate_signed_log("SEAL", "doc.pdf", "operator")
         assert "log" in result
@@ -222,7 +220,7 @@ class TestAuditTrail:
     def test_verify_log_returns_false_for_tampered_content(self, engine: SecurityEngine):
         result = engine.generate_signed_log("SEAL", "doc.pdf", "operator")
         tampered_log = result["log"].copy()
-        tampered_log["action"] = "UNSEAL"   # Falsification de l'action
+        tampered_log["action"] = "UNSEAL"  # Falsification de l'action
         tampered_json = json.dumps(tampered_log, sort_keys=True)
         assert engine.verify_log(tampered_json, result["signature"]) is False
 
@@ -261,7 +259,6 @@ class TestAuditTrail:
 # Initialisation du moteur
 # ---------------------------------------------------------------------------
 class TestEngineInit:
-
     def test_rejects_short_audit_key(self):
         with pytest.raises(ValueError, match="32 bytes"):
             SecurityEngine(audit_key=b"tooshort")

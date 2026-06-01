@@ -1,6 +1,7 @@
 """
 test_audit_store.py — Tests unitaires du module de persistance d'audit.
 """
+
 import json
 import os
 
@@ -11,7 +12,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from audit_store import store_log, get_logs, get_log_by_id, count_logs, mark_integrity
+from audit_store import count_logs, get_log_by_id, get_logs, mark_integrity, store_log
 from constants import IntegrityStatus
 from database import Base
 from models import AuditLog

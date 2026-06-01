@@ -11,12 +11,14 @@ Tests cover:
 - Payload size limits
 - Injection via context fields
 """
+
 import base64
 import hashlib
 
 import pytest
 from httpx import AsyncClient
 
+from constants import MAX_CONTEXT_LENGTH, MAX_PAYLOAD_DECODED_BYTES
 from tests.conftest import (
     AUDITOR_KEY,
     INVALID_HEADERS,
@@ -24,7 +26,6 @@ from tests.conftest import (
     TEST_CONTEXT,
     TEST_MESSAGE,
 )
-from constants import MAX_CONTEXT_LENGTH, MAX_PAYLOAD_DECODED_BYTES
 
 
 class TestAuthSecurity:
@@ -224,9 +225,7 @@ class TestUnsealSecurity:
         )
         assert unseal_resp.status_code == 401
 
-    async def test_unseal_with_wrong_context_fails(
-        self, client: AsyncClient, sealed_payload: dict
-    ):
+    async def test_unseal_with_wrong_context_fails(self, client: AsyncClient, sealed_payload: dict):
         sealed = sealed_payload["sealed"]
         kp = sealed_payload["keypair"]
 

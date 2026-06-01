@@ -4,13 +4,14 @@ audit_store.py — In-memory audit store (open-source version).
 This is a lightweight fallback for the open-source community edition.
 For production-grade PostgreSQL audit storage, use enterprise/audit/.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import threading
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from constants import IntegrityStatus
 
@@ -18,6 +19,7 @@ from constants import IntegrityStatus
 @dataclass
 class AuditLogEntry:
     """Lightweight audit log entry (in-memory, no ORM)."""
+
     id: int = 0
     sequence_number: int = 0
     created_at: str = ""
@@ -28,8 +30,8 @@ class AuditLogEntry:
     log_json: str = ""
     signature: str = ""
     integrity: str = IntegrityStatus.PENDING.value
-    prev_entry_hash: Optional[str] = None
-    entry_hash: Optional[str] = None
+    prev_entry_hash: str | None = None
+    entry_hash: str | None = None
 
 
 def _compute_entry_hash(log_json: str, signature: str, prev_hash: str | None) -> str:
@@ -91,7 +93,7 @@ class _InMemoryStore:
         if actor_filter:
             result = [e for e in result if e.actor == actor_filter]
         result.reverse()
-        return result[skip: skip + limit]
+        return result[skip : skip + limit]
 
     def get_log_by_id(self, log_id: int) -> AuditLogEntry | None:
         with self._lock:
@@ -106,9 +108,7 @@ class _InMemoryStore:
 
     def mark_integrity(self, entry: AuditLogEntry, is_valid: bool) -> None:
         with self._lock:
-            entry.integrity = (
-                IntegrityStatus.OK.value if is_valid else IntegrityStatus.FAIL.value
-            )
+            entry.integrity = IntegrityStatus.OK.value if is_valid else IntegrityStatus.FAIL.value
 
 
 _store = _InMemoryStore()

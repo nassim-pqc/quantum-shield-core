@@ -6,12 +6,14 @@ Provides:
 - Trace propagation via X-Correlation-ID and W3C tracecontext
 - OTLP export to configured endpoint (Jaeger, Grafana Tempo, etc.)
 """
+
 from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import FastAPI
 from opentelemetry import trace
@@ -66,6 +68,7 @@ def setup_opentelemetry(app: FastAPI, tracer_name: str = "quantum-shield-core") 
     except Exception as exc:
         # Fail open: tracing should never block the application
         import logging
+
         logging.getLogger("quantum_shield").warning(
             "OpenTelemetry setup failed (tracing disabled): %s", exc
         )
@@ -75,6 +78,7 @@ def setup_opentelemetry(app: FastAPI, tracer_name: str = "quantum-shield-core") 
 # ---------------------------------------------------------------------------
 # Decorator for tracing crypto operations
 # ---------------------------------------------------------------------------
+
 
 def trace_crypto(operation: str) -> Callable:
     """Decorator that wraps a cryptographic function with an OpenTelemetry span.
@@ -86,6 +90,7 @@ def trace_crypto(operation: str) -> Callable:
         def encrypt_hybrid(self, pub_key, plaintext, context):
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -109,7 +114,9 @@ def trace_crypto(operation: str) -> Callable:
                     span.set_status(Status(StatusCode.ERROR, str(exc)))
                     span.record_exception(exc)
                     raise
+
         return wrapper
+
     return decorator
 
 

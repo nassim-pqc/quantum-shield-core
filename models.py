@@ -1,10 +1,10 @@
 """
 models.py — SQLAlchemy ORM models.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,9 +23,7 @@ class ApiKey(Base):
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AuditLog(Base):
@@ -51,5 +49,5 @@ class AuditLog(Base):
     integrity: Mapped[str] = mapped_column(
         String(8), default=IntegrityStatus.PENDING.value, nullable=False
     )
-    prev_entry_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    entry_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    prev_entry_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    entry_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)

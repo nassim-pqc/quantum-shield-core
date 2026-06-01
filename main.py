@@ -3,6 +3,7 @@ main.py — Quantum Shield Core API
 ==================================
 Stateless PQC cryptographic microservice (ML-KEM-768 + AES-GCM).
 """
+
 import base64
 import hashlib
 import os
@@ -24,8 +25,6 @@ from sqlalchemy import func as sql_func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from typing import Optional
-
 from audit_store import count_logs, get_log_by_id, get_logs, mark_integrity, store_log
 from auth import require_role
 from constants import (
@@ -36,11 +35,14 @@ from constants import (
 )
 from database import AsyncSessionLocal, check_db_connection, engine, get_db, init_db
 
+
 # Enterprise license validation (stub for open-source)
 def _validate_license_key() -> bool:
     """Check if a valid enterprise license key is configured."""
     license_key = os.environ.get("QSC_LICENSE_KEY", "")
     return license_key.startswith("QSC-ENT-") and len(license_key) >= 32
+
+
 from models import ApiKey, AuditLog
 from observability import (
     AUDIT_WRITES,
@@ -61,9 +63,14 @@ configure_logging()
 ENTERPRISE_LICENSED: bool = _validate_license_key()
 
 if ENTERPRISE_LICENSED:
-    logger.info("enterprise_license_active", extra={"key_prefix": os.environ.get("QSC_LICENSE_KEY", "")[:8]})
+    logger.info(
+        "enterprise_license_active", extra={"key_prefix": os.environ.get("QSC_LICENSE_KEY", "")[:8]}
+    )
 else:
-    logger.info("enterprise_license_inactive", extra={"detail": "Community edition (in-memory audit, no AWS/Vault KMS)"})
+    logger.info(
+        "enterprise_license_inactive",
+        extra={"detail": "Community edition (in-memory audit, no AWS/Vault KMS)"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -91,11 +98,14 @@ def _create_kms_provider(keys: dict[str, bytes]):
             _ent_license.require_enterprise_license()  # raises HTTPException 402
         if provider == "aws":
             from enterprise.kms.aws_kms import AWSKMSProvider
+
             return AWSKMSProvider()
         if provider == "vault":
             from enterprise.kms.vault_kms import HashiCorpVaultKMSProvider
+
             return HashiCorpVaultKMSProvider()
         from enterprise.kms.azure_kms import AzureKeyVaultProvider
+
         return AzureKeyVaultProvider()
     return LocalEnvKMS(keys)
 
@@ -125,7 +135,9 @@ async def lifespan(app: FastAPI):
         await _seed_api_key(db, "API_KEY_OPERATOR", "operator", "System Operator")
         await _seed_api_key(db, "API_KEY_AUDITOR", "auditor", "System Auditor")
         await db.commit()
-    logger.info("quantum_shield_started", extra={"version": API_VERSION, "enterprise": ENTERPRISE_LICENSED})
+    logger.info(
+        "quantum_shield_started", extra={"version": API_VERSION, "enterprise": ENTERPRISE_LICENSED}
+    )
     yield
     logger.info("quantum_shield_shutdown", extra={"version": API_VERSION})
     await engine.dispose()
@@ -220,9 +232,7 @@ async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Strict-Transport-Security"] = (
-        "max-age=63072000; includeSubDomains; preload"
-    )
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Referrer-Policy"] = "no-referrer"
@@ -237,24 +247,28 @@ async def add_security_headers(request: Request, call_next):
 # Pydantic schemas
 # ---------------------------------------------------------------------------
 class KeyPairResponse(BaseModel):
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "public_key_b64": "abc123...",
-            "private_key_b64": "def456...",
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "public_key_b64": "abc123...",
+                "private_key_b64": "def456...",
+            }
         }
-    })
+    )
     public_key_b64: str = Field(..., description="Kyber768 public key (Base64).")
     private_key_b64: str = Field(..., description="Kyber768 secret key (Base64). Store securely.")
 
 
 class SealRequest(BaseModel):
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "public_key_b64": "base64-public-key",
-            "data_b64": "SGVsbG8=",
-            "context": "contract-2025-001",
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "public_key_b64": "base64-public-key",
+                "data_b64": "SGVsbG8=",
+                "context": "contract-2025-001",
+            }
         }
-    })
+    )
     public_key_b64: str = Field(..., description="Recipient Kyber768 public key.")
     data_b64: str = Field(..., description="Plaintext (Base64).")
     context: str = Field(..., min_length=1, max_length=MAX_CONTEXT_LENGTH)
@@ -289,9 +303,9 @@ class UnsealResponse(BaseModel):
 
 
 class AuditRequest(BaseModel):
-    model_config = ConfigDict(json_schema_extra={
-        "example": {"action": "EXPORT", "target": "report.pdf", "user": "alice"}
-    })
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"action": "EXPORT", "target": "report.pdf", "user": "alice"}}
+    )
     action: str = Field(..., min_length=1, max_length=64)
     target: str = Field(..., min_length=1, max_length=MAX_CONTEXT_LENGTH)
     user: str = Field(..., min_length=1, max_length=64)
@@ -485,8 +499,8 @@ async def read_audit_logs(
     request: Request,
     skip: int = 0,
     limit: int = 50,
-    action: Optional[str] = None,
-    actor: Optional[str] = None,
+    action: str | None = None,
+    actor: str | None = None,
     db: AsyncSession = Depends(get_db),
     role: str = Depends(require_role("operator", "auditor")),
 ):

@@ -1,4 +1,5 @@
 """HTTP middleware — correlation ID propagation and request timing."""
+
 import logging
 import time
 import uuid

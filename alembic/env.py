@@ -1,16 +1,16 @@
 """
 Alembic environment — async migrations for Quantum Shield.
 """
+
 import asyncio
-import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from database import Base, DATABASE_URL
+from alembic import context
+from database import DATABASE_URL, Base
 from models import ApiKey, AuditLog  # noqa: F401 — register metadata
 
 config = context.config

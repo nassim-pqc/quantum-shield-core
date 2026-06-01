@@ -9,6 +9,7 @@ Environment Variables:
     AZURE_AUDIT_KEY_NAME     Secret name for audit key (default: quantum-shield-audit)
     AZURE_TENANT_ID          Azure tenant ID (optional — uses DefaultAzureCredential)
 """
+
 from __future__ import annotations
 
 import os
@@ -67,9 +68,7 @@ class AzureKeyVaultProvider(AbstractKMS):
             AzureKeyVaultConfigurationError: If vault_url is missing or invalid.
         """
         self.vault_url = vault_url or os.environ.get("AZURE_KEY_VAULT_URL", "")
-        self.key_name = key_name or os.environ.get(
-            "AZURE_AUDIT_KEY_NAME", "quantum-shield-audit"
-        )
+        self.key_name = key_name or os.environ.get("AZURE_AUDIT_KEY_NAME", "quantum-shield-audit")
 
         if not self.vault_url:
             raise AzureKeyVaultConfigurationError(
@@ -108,8 +107,8 @@ class AzureKeyVaultProvider(AbstractKMS):
             return self._client
 
         try:
-            from azure.keyvault.secrets import SecretClient
             from azure.identity import DefaultAzureCredential
+            from azure.keyvault.secrets import SecretClient
 
             credential = DefaultAzureCredential()
             self._client = SecretClient(vault_url=self.vault_url, credential=credential)
@@ -159,7 +158,9 @@ class AzureKeyVaultProvider(AbstractKMS):
 
             try:
                 secret = client.get_secret(secret_name)
-                key = secret.value.encode("utf-8") if isinstance(secret.value, str) else secret.value
+                key = (
+                    secret.value.encode("utf-8") if isinstance(secret.value, str) else secret.value
+                )
                 self._cache[version] = key
                 self._cache_timestamps[version] = now
                 return key
@@ -184,9 +185,7 @@ class AzureKeyVaultProvider(AbstractKMS):
                     f"Azure Key Vault authentication failed: {exc}. "
                     "Check DefaultAzureCredential configuration."
                 ) from exc
-            raise AzureKeyVaultConnectionError(
-                f"Unexpected Azure Key Vault error: {exc}"
-            ) from exc
+            raise AzureKeyVaultConnectionError(f"Unexpected Azure Key Vault error: {exc}") from exc
 
     def store_audit_key(self, version: str, key_value: bytes) -> None:
         """
@@ -201,9 +200,7 @@ class AzureKeyVaultProvider(AbstractKMS):
             AzureKeyVaultConnectionError: If Key Vault is unreachable.
         """
         if len(key_value) < 32:
-            raise ValueError(
-                f"Key must be at least 32 bytes (got {len(key_value)})"
-            )
+            raise ValueError(f"Key must be at least 32 bytes (got {len(key_value)})")
 
         try:
             client = self._get_client()
@@ -221,9 +218,7 @@ class AzureKeyVaultProvider(AbstractKMS):
                 raise AzureKeyVaultAuthError(
                     f"Azure Key Vault authentication failed: {exc}"
                 ) from exc
-            raise AzureKeyVaultConnectionError(
-                f"Failed to store secret: {exc}"
-            ) from exc
+            raise AzureKeyVaultConnectionError(f"Failed to store secret: {exc}") from exc
 
     def health_check(self) -> dict[str, Any]:
         """
@@ -258,4 +253,3 @@ __all__ = [
     "AzureKeyVaultKeyError",
     "AzureKeyVaultConfigurationError",
 ]
-

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Render documentation PNGs from captured live API/Docker output."""
+
 from __future__ import annotations
 
 import json
@@ -94,7 +95,9 @@ def render_swagger_ui_png(openapi_path: str) -> None:
             color = (
                 SWAGGER_ACCENT
                 if method == "POST"
-                else (73, 204, 144) if method == "GET" else (250, 176, 59)
+                else (73, 204, 144)
+                if method == "GET"
+                else (250, 176, 59)
             )
             draw.rectangle((20, y, 70, y + 18), fill=color)
             draw.text((24, y + 2), method, fill=(255, 255, 255), font=_font(9, mono=False))
@@ -102,7 +105,9 @@ def render_swagger_ui_png(openapi_path: str) -> None:
             y += 24
         y += 8
 
-    draw.text((20, height - 28), "http://127.0.0.1:8000/docs", fill=MUTED, font=_font(10, mono=False))
+    draw.text(
+        (20, height - 28), "http://127.0.0.1:8000/docs", fill=MUTED, font=_font(10, mono=False)
+    )
     img.save(os.path.join(OUT, "screenshot-swagger.png"))
     print(f"Wrote {os.path.join(OUT, 'screenshot-swagger.png')}")
 

@@ -11,6 +11,7 @@ Couvre :
   - Validation des payloads (champs manquants, types incorrects)
   - Sécurité : messages d'erreur opaques sur unseal
 """
+
 import base64
 
 import pytest
@@ -29,7 +30,6 @@ from httpx import AsyncClient
 # Health Check
 # ===========================================================================
 class TestHealth:
-
     @pytest.mark.asyncio
     async def test_health_returns_200(self, client: AsyncClient):
         r = await client.get("/health")
@@ -55,7 +55,6 @@ class TestHealth:
 # Security Headers
 # ===========================================================================
 class TestSecurityHeaders:
-
     @pytest.mark.asyncio
     async def test_hsts_header_present(self, client: AsyncClient):
         r = await client.get("/health")
@@ -81,7 +80,6 @@ class TestSecurityHeaders:
 # Authentication & RBAC
 # ===========================================================================
 class TestAuthentication:
-
     @pytest.mark.asyncio
     async def test_missing_api_key_returns_403(self, client: AsyncClient):
         r = await client.post("/api/v1/keys/generate")
@@ -104,8 +102,8 @@ class TestAuthentication:
             headers=AUDITOR_HEADERS,
             json={
                 "public_key_b64": keypair["public_key_b64"],
-                "data_b64":       base64.b64encode(TEST_MESSAGE).decode(),
-                "context":        TEST_CONTEXT,
+                "data_b64": base64.b64encode(TEST_MESSAGE).decode(),
+                "context": TEST_CONTEXT,
             },
         )
         assert r.status_code == 403
@@ -118,11 +116,11 @@ class TestAuthentication:
             "/api/v1/crypto/unseal",
             headers=AUDITOR_HEADERS,
             json={
-                "private_key_b64":    k["private_key_b64"],
+                "private_key_b64": k["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            TEST_CONTEXT,
+                "context": TEST_CONTEXT,
             },
         )
         assert r.status_code == 403
@@ -142,7 +140,6 @@ class TestAuthentication:
 # Key Generation
 # ===========================================================================
 class TestKeyGeneration:
-
     @pytest.mark.asyncio
     async def test_generate_returns_201(self, client: AsyncClient):
         r = await client.post("/api/v1/keys/generate", headers=OPERATOR_HEADERS)
@@ -159,7 +156,7 @@ class TestKeyGeneration:
     async def test_generated_keys_are_valid_base64(self, client: AsyncClient):
         r = await client.post("/api/v1/keys/generate", headers=OPERATOR_HEADERS)
         body = r.json()
-        base64.b64decode(body["public_key_b64"])   # Ne doit pas lever
+        base64.b64decode(body["public_key_b64"])  # Ne doit pas lever
         base64.b64decode(body["private_key_b64"])  # Ne doit pas lever
 
     @pytest.mark.asyncio
@@ -180,7 +177,6 @@ class TestKeyGeneration:
 # Seal (Chiffrement)
 # ===========================================================================
 class TestSeal:
-
     @pytest.mark.asyncio
     async def test_seal_returns_200(self, client: AsyncClient, keypair: dict):
         r = await client.post(
@@ -188,8 +184,8 @@ class TestSeal:
             headers=OPERATOR_HEADERS,
             json={
                 "public_key_b64": keypair["public_key_b64"],
-                "data_b64":       base64.b64encode(TEST_MESSAGE).decode(),
-                "context":        TEST_CONTEXT,
+                "data_b64": base64.b64encode(TEST_MESSAGE).decode(),
+                "context": TEST_CONTEXT,
             },
         )
         assert r.status_code == 200
@@ -201,8 +197,8 @@ class TestSeal:
             headers=OPERATOR_HEADERS,
             json={
                 "public_key_b64": keypair["public_key_b64"],
-                "data_b64":       base64.b64encode(b"data").decode(),
-                "context":        TEST_CONTEXT,
+                "data_b64": base64.b64encode(b"data").decode(),
+                "context": TEST_CONTEXT,
             },
         )
         body = r.json()
@@ -217,7 +213,7 @@ class TestSeal:
             headers=OPERATOR_HEADERS,
             json={
                 "public_key_b64": keypair["public_key_b64"],
-                "data_b64":       base64.b64encode(b"data").decode(),
+                "data_b64": base64.b64encode(b"data").decode(),
                 # context manquant
             },
         )
@@ -230,8 +226,8 @@ class TestSeal:
             headers=OPERATOR_HEADERS,
             json={
                 "public_key_b64": keypair["public_key_b64"],
-                "data_b64":       base64.b64encode(b"data").decode(),
-                "context":        "",  # context vide
+                "data_b64": base64.b64encode(b"data").decode(),
+                "context": "",  # context vide
             },
         )
         assert r.status_code == 422
@@ -243,8 +239,8 @@ class TestSeal:
             headers=OPERATOR_HEADERS,
             json={
                 "public_key_b64": keypair["public_key_b64"],
-                "data_b64":       base64.b64encode(b"data").decode(),
-                "context":        TEST_CONTEXT,
+                "data_b64": base64.b64encode(b"data").decode(),
+                "context": TEST_CONTEXT,
             },
         )
         logs = (await client.get("/api/v1/audit/logs", headers=OPERATOR_HEADERS)).json()
@@ -255,7 +251,6 @@ class TestSeal:
 # Unseal (Déchiffrement)
 # ===========================================================================
 class TestUnseal:
-
     @pytest.mark.asyncio
     async def test_unseal_returns_200(self, client: AsyncClient, sealed_payload: dict):
         s = sealed_payload["sealed"]
@@ -264,28 +259,30 @@ class TestUnseal:
             "/api/v1/crypto/unseal",
             headers=OPERATOR_HEADERS,
             json={
-                "private_key_b64":    k["private_key_b64"],
+                "private_key_b64": k["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            TEST_CONTEXT,
+                "context": TEST_CONTEXT,
             },
         )
         assert r.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_unseal_recovers_original_message(self, client: AsyncClient, sealed_payload: dict):
+    async def test_unseal_recovers_original_message(
+        self, client: AsyncClient, sealed_payload: dict
+    ):
         s = sealed_payload["sealed"]
         k = sealed_payload["keypair"]
         r = await client.post(
             "/api/v1/crypto/unseal",
             headers=OPERATOR_HEADERS,
             json={
-                "private_key_b64":    k["private_key_b64"],
+                "private_key_b64": k["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            TEST_CONTEXT,
+                "context": TEST_CONTEXT,
             },
         )
         recovered = base64.b64decode(r.json()["decrypted_data_b64"])
@@ -300,11 +297,11 @@ class TestUnseal:
             "/api/v1/crypto/unseal",
             headers=OPERATOR_HEADERS,
             json={
-                "private_key_b64":    k["private_key_b64"],
+                "private_key_b64": k["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            "MAUVAIS_CONTEXTE",
+                "context": "MAUVAIS_CONTEXTE",
             },
         )
         assert r.status_code == 401
@@ -313,16 +310,18 @@ class TestUnseal:
     async def test_wrong_private_key_returns_401(self, client: AsyncClient, sealed_payload: dict):
         """Mauvaise clé privée → déchiffrement rejeté."""
         s = sealed_payload["sealed"]
-        wrong_keypair = (await client.post("/api/v1/keys/generate", headers=OPERATOR_HEADERS)).json()
+        wrong_keypair = (
+            await client.post("/api/v1/keys/generate", headers=OPERATOR_HEADERS)
+        ).json()
         r = await client.post(
             "/api/v1/crypto/unseal",
             headers=OPERATOR_HEADERS,
             json={
-                "private_key_b64":    wrong_keypair["private_key_b64"],
+                "private_key_b64": wrong_keypair["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            TEST_CONTEXT,
+                "context": TEST_CONTEXT,
             },
         )
         assert r.status_code == 401
@@ -339,11 +338,11 @@ class TestUnseal:
             "/api/v1/crypto/unseal",
             headers=OPERATOR_HEADERS,
             json={
-                "private_key_b64":    k["private_key_b64"],
+                "private_key_b64": k["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            "WRONG",
+                "context": "WRONG",
             },
         )
         error_detail = r.json().get("detail", "")
@@ -360,11 +359,11 @@ class TestUnseal:
             "/api/v1/crypto/unseal",
             headers=OPERATOR_HEADERS,
             json={
-                "private_key_b64":    k["private_key_b64"],
+                "private_key_b64": k["private_key_b64"],
                 "ciphertext_pqc_b64": s["ciphertext_pqc_b64"],
-                "nonce_b64":          s["nonce_b64"],
+                "nonce_b64": s["nonce_b64"],
                 "encrypted_data_b64": s["encrypted_data_b64"],
-                "context":            TEST_CONTEXT,
+                "context": TEST_CONTEXT,
             },
         )
         logs = (await client.get("/api/v1/audit/logs", headers=OPERATOR_HEADERS)).json()
@@ -375,7 +374,6 @@ class TestUnseal:
 # Audit Trail
 # ===========================================================================
 class TestAuditTrail:
-
     @pytest.mark.asyncio
     async def test_write_log_returns_201(self, client: AsyncClient):
         r = await client.post(

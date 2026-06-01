@@ -20,14 +20,16 @@ Environment Variables:
     VAULT_RETRY_MAX          Max retry delay seconds (default: 10.0)
     VAULT_VERIFY_SSL         TLS verification (default: true)
 """
+
 from __future__ import annotations
 
 import base64
 import json
+import logging as _logging
 import os
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -39,13 +41,11 @@ from tenacity import (
     wait_exponential,
 )
 
-import logging as _logging
-
 from providers.kms.base import (
-    KMSProvider,
     KeyWrapperAuthError,
     KeyWrapperError,
     KeyWrapperTransientError,
+    KMSProvider,
 )
 
 _logger = _logging.getLogger(__name__)
@@ -83,7 +83,9 @@ class VaultKMSConfig:
     def __post_init__(self) -> None:
         self.addr = self.addr or os.environ.get("VAULT_ADDR", "")
         self.token = self.token or os.environ.get("VAULT_TOKEN", "")
-        self.transit_key = self.transit_key or os.environ.get("VAULT_TRANSIT_KEY", "quantum-shield-dek")
+        self.transit_key = self.transit_key or os.environ.get(
+            "VAULT_TRANSIT_KEY", "quantum-shield-dek"
+        )
         self.kv_path = self.kv_path or os.environ.get("VAULT_KV_PATH", "quantum-shield/audit-keys")
         self.mount_point = self.mount_point or os.environ.get("VAULT_KV_MOUNT", "secret")
         if os.environ.get("VAULT_TIMEOUT"):
@@ -165,7 +167,9 @@ class VaultClient:
             if exc.response.status_code == 404:
                 return KeyWrapperError(f"Vault path not found: {msg}")
             if exc.response.status_code in (429, 500, 502, 503, 504):
-                return KeyWrapperTransientError(f"Vault transient HTTP {exc.response.status_code}: {msg}")
+                return KeyWrapperTransientError(
+                    f"Vault transient HTTP {exc.response.status_code}: {msg}"
+                )
             return KeyWrapperError(f"Vault HTTP {exc.response.status_code}: {msg}")
         if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
             return KeyWrapperTransientError(f"Vault connection error: {msg}")
@@ -435,7 +439,9 @@ class HashiCorpVaultKMSProvider(KMSProvider):
                 return None
             key = raw.encode() if isinstance(raw, str) else raw
             if len(key) < 32:
-                _logger.warning("Audit key %s from Vault is too short (%d bytes)", version, len(key))
+                _logger.warning(
+                    "Audit key %s from Vault is too short (%d bytes)", version, len(key)
+                )
                 return None
             self._cache[version] = key
             self._cache_ts[version] = now

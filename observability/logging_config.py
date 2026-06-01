@@ -1,4 +1,5 @@
 """Structured JSON logging configuration."""
+
 import json
 import logging
 import os

@@ -4,13 +4,14 @@ security_engine.py — Core cryptographic engine for Quantum Shield.
 ML-KEM-768 (Kyber768) hybrid encryption + HMAC-SHA256 signed audit trail.
 KMS abstraction supports local env keys and enterprise provider stubs.
 """
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import oqs
@@ -23,15 +24,14 @@ from observability.tracing import trace_crypto
 _RUST_ENGINE_AVAILABLE = False
 try:
     import quantum_shield_engine
+
     _RUST_ENGINE_AVAILABLE = True
 except ImportError:
     pass
 
 import logging as _logging
-_logging.getLogger(__name__).info(
-    "rust_engine_status",
-    extra={"loaded": _RUST_ENGINE_AVAILABLE}
-)
+
+_logging.getLogger(__name__).info("rust_engine_status", extra={"loaded": _RUST_ENGINE_AVAILABLE})
 
 
 # --- KMS Abstraction ---
@@ -64,9 +64,7 @@ class SecurityEngine:
     ) -> None:
         if audit_key is not None:
             if len(audit_key) < MIN_AUDIT_KEY_BYTES:
-                raise ValueError(
-                    f"Audit key must be at least {MIN_AUDIT_KEY_BYTES} bytes."
-                )
+                raise ValueError(f"Audit key must be at least {MIN_AUDIT_KEY_BYTES} bytes.")
             kms_provider = LocalEnvKMS({"v1": audit_key})
             active_key_version = "v1"
 
@@ -78,9 +76,7 @@ class SecurityEngine:
         self.pqc_alg = self.PQC_ALG
 
         if not self.kms.get_audit_key(self.active_key_version):
-            raise ValueError(
-                f"Active audit key '{active_key_version}' not found in KMS."
-            )
+            raise ValueError(f"Active audit key '{active_key_version}' not found in KMS.")
 
         # Initialize Rust engine for HMAC/AES-GCM if available
         self._rust_engine = None
@@ -113,7 +109,9 @@ class SecurityEngine:
 
         if self._rust_engine is not None:
             try:
-                nonce, encrypted_data = self._rust_engine.encrypt_aes_gcm(shared_secret, plaintext, context)
+                nonce, encrypted_data = self._rust_engine.encrypt_aes_gcm(
+                    shared_secret, plaintext, context
+                )
             except Exception:
                 aes_key = hashlib.sha256(shared_secret).digest()
                 nonce = os.urandom(AES_GCM_NONCE_BYTES)
@@ -144,7 +142,9 @@ class SecurityEngine:
 
         if self._rust_engine is not None:
             try:
-                return self._rust_engine.decrypt_aes_gcm(shared_secret, nonce, encrypted_data, context)
+                return self._rust_engine.decrypt_aes_gcm(
+                    shared_secret, nonce, encrypted_data, context
+                )
             except Exception:
                 aes_key = hashlib.sha256(shared_secret).digest()
                 return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
@@ -166,7 +166,7 @@ class SecurityEngine:
             "action": action,
             "key_version": self.active_key_version,
             "target": target,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "user": user,
         }
 
@@ -187,9 +187,7 @@ class SecurityEngine:
 
         active_key = self.kms.get_audit_key(self.active_key_version)
         if active_key is None:
-            raise ValueError(
-                f"Active audit key '{self.active_key_version}' not found in KMS."
-            )
+            raise ValueError(f"Active audit key '{self.active_key_version}' not found in KMS.")
         signature = hmac.new(active_key, log_bytes, hashlib.sha256).hexdigest()
 
         return {
