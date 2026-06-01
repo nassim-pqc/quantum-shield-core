@@ -1,57 +1,65 @@
 """
-vault_kms.py — Production-grade HashiCorp Vault KMS provider.
+vault_kms.py — HashiCorp Vault provider with DEK Key Wrapping + audit key retrieval.
 
-Integrates with Vault KV v2 secrets engine for audit key storage/rotation.
-Full enterprise features: auth token, retry logic, timeout, async support,
-connection pooling, health checks, and strict validation.
+Implements:
+  - KeyWrapper: wrap_key() / unwrap_key() via Vault Transit Engine
+    (/v1/transit/encrypt/:key_name, /v1/transit/decrypt/:key_name)
+  - SecretProvider: get_audit_key() via KV v2 secrets engine
+
+Uses tenacity for async retry with exponential backoff on transient errors.
 
 Environment Variables:
-    VAULT_ADDR              Vault server URL (e.g. https://vault:8200)
-    VAULT_TOKEN             Vault authentication token (short-lived preferred)
-    VAULT_KV_PATH           KV v2 path (default: quantum-shield/audit-keys)
-    VAULT_KV_MOUNT          KV v2 mount point (default: secret)
-    VAULT_TIMEOUT           HTTP client timeout seconds (default: 10)
-    VAULT_MAX_RETRIES       Max retry attempts (default: 3)
-    VAULT_RETRY_DELAY       Base delay seconds (default: 1.0)
+    VAULT_ADDR               Vault server URL (e.g. https://vault:8200)
+    VAULT_TOKEN              Vault authentication token
+    VAULT_TRANSIT_KEY        Transit Engine key name (default: quantum-shield-dek)
+    VAULT_KV_PATH            KV v2 path for audit keys (default: quantum-shield/audit-keys)
+    VAULT_KV_MOUNT           KV v2 mount point (default: secret)
+    VAULT_TIMEOUT            HTTP client timeout seconds (default: 10)
+    VAULT_MAX_RETRIES        Max retry attempts (default: 3)
+    VAULT_RETRY_MIN          Min retry delay seconds (default: 1.0)
+    VAULT_RETRY_MAX          Max retry delay seconds (default: 10.0)
+    VAULT_VERIFY_SSL         TLS verification (default: true)
 """
 from __future__ import annotations
 
-import asyncio
+import base64
 import json
 import os
 import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urljoin
 
 import httpx
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
-from security_engine import AbstractKMS
+import logging as _logging
+
+from providers.kms.base import (
+    KMSProvider,
+    KeyWrapperAuthError,
+    KeyWrapperError,
+    KeyWrapperTransientError,
+)
+
+_logger = _logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 _DEFAULT_TIMEOUT: float = 10.0
 _DEFAULT_MAX_RETRIES: int = 3
-_DEFAULT_RETRY_DELAY: float = 1.0
-_MAX_KEY_SIZE: int = 64
+_DEFAULT_RETRY_MIN: float = 1.0
+_DEFAULT_RETRY_MAX: float = 10.0
+_CACHE_TTL: float = 300.0  # 5 minutes
 _MAX_PATH_DEPTH: int = 10
-
-# ---------------------------------------------------------------------------
-# Exceptions
-# ---------------------------------------------------------------------------
-class VaultKMSConnectionError(Exception):
-    """Raised when Vault server is unreachable."""
-
-class VaultKMSAuthError(Exception):
-    """Raised on authentication failure (bad token, expired, or insufficient perms)."""
-
-class VaultKMSKeyError(Exception):
-    """Raised when key operation fails (missing key, bad format, etc.)."""
-
-class VaultKMSConfigurationError(Exception):
-    """Raised on invalid configuration or environment."""
 
 
 # ---------------------------------------------------------------------------
@@ -59,317 +67,261 @@ class VaultKMSConfigurationError(Exception):
 # ---------------------------------------------------------------------------
 @dataclass
 class VaultKMSConfig:
-    """Immutable configuration for HashiCorp Vault provider."""
+    """Immutable configuration for Vault KMS provider."""
 
     addr: str = ""
     token: str = ""
+    transit_key: str = "quantum-shield-dek"
     kv_path: str = "quantum-shield/audit-keys"
     mount_point: str = "secret"
     timeout: float = _DEFAULT_TIMEOUT
     max_retries: int = _DEFAULT_MAX_RETRIES
-    retry_delay: float = _DEFAULT_RETRY_DELAY
+    retry_min: float = _DEFAULT_RETRY_MIN
+    retry_max: float = _DEFAULT_RETRY_MAX
     verify_ssl: bool = True
-    _validated: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.addr = self.addr or os.environ.get("VAULT_ADDR", "")
         self.token = self.token or os.environ.get("VAULT_TOKEN", "")
-        self.kv_path = self.kv_path or os.environ.get(
-            "VAULT_KV_PATH", "quantum-shield/audit-keys"
-        )
-        self.mount_point = self.mount_point or os.environ.get(
-            "VAULT_KV_MOUNT", "secret"
-        )
-        timeout_env = os.environ.get("VAULT_TIMEOUT")
-        if timeout_env is not None:
-            self.timeout = float(timeout_env)
-        max_retries_env = os.environ.get("VAULT_MAX_RETRIES")
-        if max_retries_env is not None:
-            self.max_retries = int(max_retries_env)
-        retry_delay_env = os.environ.get("VAULT_RETRY_DELAY")
-        if retry_delay_env is not None:
-            self.retry_delay = float(retry_delay_env)
+        self.transit_key = self.transit_key or os.environ.get("VAULT_TRANSIT_KEY", "quantum-shield-dek")
+        self.kv_path = self.kv_path or os.environ.get("VAULT_KV_PATH", "quantum-shield/audit-keys")
+        self.mount_point = self.mount_point or os.environ.get("VAULT_KV_MOUNT", "secret")
+        if os.environ.get("VAULT_TIMEOUT"):
+            self.timeout = float(os.environ["VAULT_TIMEOUT"])
+        if os.environ.get("VAULT_MAX_RETRIES"):
+            self.max_retries = int(os.environ["VAULT_MAX_RETRIES"])
+        if os.environ.get("VAULT_RETRY_MIN"):
+            self.retry_min = float(os.environ["VAULT_RETRY_MIN"])
+        if os.environ.get("VAULT_RETRY_MAX"):
+            self.retry_max = float(os.environ["VAULT_RETRY_MAX"])
         verify_env = os.environ.get("VAULT_VERIFY_SSL", "true")
         self.verify_ssl = verify_env.lower() in ("true", "1", "yes")
 
     def validate(self) -> None:
-        """Validate configuration, raising VaultKMSConfigurationError on failure."""
+        """Validate configuration, raising ValueError on failure."""
         errors: list[str] = []
-
-        # Validate address
         if not self.addr:
             errors.append("VAULT_ADDR is required (e.g. https://vault:8200)")
-        else:
-            addr_pattern = re.compile(
-                r"^https?://[a-zA-Z0-9._-]+(:\d{1,5})?(/.*)?$"
-            )
-            if not addr_pattern.match(self.addr):
-                errors.append(f"VAULT_ADDR '{self.addr}' is not a valid URL")
-
-        # Validate token
+        elif not re.match(r"^https?://[a-zA-Z0-9._-]+(:\d{1,5})?(/.*)?$", self.addr):
+            errors.append(f"VAULT_ADDR '{self.addr}' is not a valid URL")
         if not self.token:
             errors.append("VAULT_TOKEN is required")
         elif len(self.token) < 8:
             errors.append("VAULT_TOKEN appears too short (min 8 chars)")
-
-        # Validate path
         path_parts = self.kv_path.split("/")
         if len(path_parts) > _MAX_PATH_DEPTH:
             errors.append(f"VAULT_KV_PATH depth exceeds {_MAX_PATH_DEPTH} segments")
-
-        # Validate numeric parameters
         if self.timeout <= 0:
             errors.append("VAULT_TIMEOUT must be positive")
         if self.max_retries < 0 or self.max_retries > 10:
             errors.append("VAULT_MAX_RETRIES must be between 0 and 10")
-        if self.retry_delay <= 0:
-            errors.append("VAULT_RETRY_DELAY must be positive")
-
+        if self.retry_min <= 0:
+            errors.append("VAULT_RETRY_MIN must be positive")
         if errors:
-            raise VaultKMSConfigurationError(
-                "Vault KMS configuration validation failed: " + "; ".join(errors)
-            )
-        self._validated = True
+            raise ValueError("Vault KMS config: " + "; ".join(errors))
 
 
 # ---------------------------------------------------------------------------
-# Vault KV v2 Client (production-grade)
+# Helpers
 # ---------------------------------------------------------------------------
-class VaultKVClient:
+def _is_retryable(exc: BaseException) -> bool:
+    return isinstance(exc, KeyWrapperTransientError)
+
+
+# ---------------------------------------------------------------------------
+# Vault Client
+# ---------------------------------------------------------------------------
+class VaultClient:
     """
-    Low-level HTTP client for HashiCorp Vault KV v2 secrets engine.
+    HTTP client for HashiCorp Vault (Transit Engine + KV v2).
 
-    Thread-safe when using separate instances. Supports retries with
-    exponential backoff, connection pooling via httpx.AsyncClient.
+    Thread-safe when using separate instances. Uses tenacity for retry.
     """
 
     def __init__(self, config: VaultKMSConfig) -> None:
         self._config = config
-        self._client: httpx.AsyncClient | None = None
+        self._client: httpx.Client | None = None
         self._headers: dict[str, str] = {
             "X-Vault-Token": config.token,
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
-        self._kv_path = f"/v1/{config.mount_point}/data/{config.kv_path}"
 
-    async def __aenter__(self) -> VaultKVClient:
-        await self._ensure_client()
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        await self.close()
-
-    async def _ensure_client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
+    def _get_client(self) -> httpx.Client:
+        if self._client is None:
+            self._client = httpx.Client(
                 base_url=self._config.addr.rstrip("/"),
                 headers=self._headers,
                 timeout=httpx.Timeout(self._config.timeout),
                 verify=self._config.verify_ssl,
-                limits=httpx.Limits(
-                    max_keepalive_connections=5,
-                    max_connections=10,
-                    keepalive_expiry=30.0,
-                ),
             )
         return self._client
 
-    async def close(self) -> None:
-        if self._client and not self._client.is_closed:
-            await self._client.aclose()
+    def _classify_error(self, exc: Exception, context: str = "") -> KeyWrapperError:
+        msg = f"{context}: {exc}" if context else str(exc)
+        if isinstance(exc, httpx.HTTPStatusError):
+            if exc.response.status_code == 403:
+                return KeyWrapperAuthError(f"Vault auth failed (403): {msg}")
+            if exc.response.status_code == 404:
+                return KeyWrapperError(f"Vault path not found: {msg}")
+            if exc.response.status_code in (429, 500, 502, 503, 504):
+                return KeyWrapperTransientError(f"Vault transient HTTP {exc.response.status_code}: {msg}")
+            return KeyWrapperError(f"Vault HTTP {exc.response.status_code}: {msg}")
+        if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+            return KeyWrapperTransientError(f"Vault connection error: {msg}")
+        return KeyWrapperTransientError(f"Unexpected Vault error: {msg}")
 
-    async def _request(
-        self,
-        method: str,
-        path: str,
-        json_data: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Execute an HTTP request with retry logic."""
-        client = await self._ensure_client()
-        last_exc: Exception | None = None
+    # -- tenacity-retried operations --
 
-        for attempt in range(self._config.max_retries + 1):
-            try:
-                response = await client.request(method, path, json=json_data)
-
-                # Handle 403 — bad token
-                if response.status_code == 403:
-                    raise VaultKMSAuthError(
-                        "Vault authentication failed (403 Forbidden). "
-                        "Check VAULT_TOKEN and token permissions."
-                    )
-
-                # Handle 404 — path not found
-                if response.status_code == 404:
-                    raise VaultKMSKeyError(
-                        f"Vault path not found: {path}. "
-                        "Ensure the KV v2 engine is enabled and path is correct."
-                    )
-
-                response.raise_for_status()
-
-                data: dict[str, Any] = response.json()
-                # Handle Vault wrapping response
-                if "data" in data and isinstance(data["data"], dict):
-                    if "data" in data["data"]:  # KV v2 nested response
-                        return data["data"]["data"]
-                    return data["data"]
-                return data
-
-            except (httpx.TimeoutException, httpx.ConnectError) as exc:
-                last_exc = VaultKMSConnectionError(
-                    f"Vault connection failed (attempt {attempt + 1}/"
-                    f"{self._config.max_retries + 1}): {exc}"
-                )
-                if attempt < self._config.max_retries:
-                    delay = self._config.retry_delay * (2 ** attempt)
-                    await asyncio.sleep(delay)
-                continue
-
-            except (VaultKMSAuthError, VaultKMSKeyError):
-                raise
-
-            except httpx.HTTPStatusError as exc:
-                raise VaultKMSConnectionError(
-                    f"Vault HTTP {exc.response.status_code}: {exc.response.text}"
-                ) from exc
-
-            except Exception as exc:
-                raise VaultKMSConnectionError(
-                    f"Unexpected Vault client error: {exc}"
-                ) from exc
-
-        raise VaultKMSConnectionError(
-            f"Vault request failed after {self._config.max_retries + 1} attempts. "
-            f"Last error: {last_exc}"
-        ) from last_exc
-
-    async def get_secret(self, key: str) -> str | None:
-        """
-        Retrieve a secret from KV v2 by key name.
-
-        Args:
-            key: Secret key name (e.g. "v1", "v2")
-
-        Returns:
-            Secret value as string, or None if key does not exist.
-        """
+    @retry(
+        stop=stop_after_attempt(_DEFAULT_MAX_RETRIES + 1),
+        wait=wait_exponential(multiplier=1, min=_DEFAULT_RETRY_MIN, max=_DEFAULT_RETRY_MAX),
+        retry=retry_if_exception(_is_retryable),
+        before_sleep=before_sleep_log(_logger, _logging.WARNING),
+        reraise=True,
+    )
+    def transit_encrypt(self, key_name: str, plaintext_b64: str) -> str:
+        """Encrypt plaintext using Vault Transit Engine."""
+        client = self._get_client()
         try:
-            result = await self._request("GET", f"{self._kv_path}")
-            if isinstance(result, dict) and key in result:
-                value = result[key]
-                if value is None:
-                    return None
-                return str(value)
-            # Check nested structure
-            for k, v in result.items():
-                if k == key:
-                    return str(v) if v is not None else None
-            return None
-        except VaultKMSKeyError:
-            return None
+            resp = client.post(
+                f"/v1/transit/encrypt/{key_name}",
+                json={"plaintext": plaintext_b64},
+            )
+            resp.raise_for_status()
+            return resp.json()["data"]["ciphertext"]
+        except Exception as exc:
+            raise self._classify_error(exc, "transit_encrypt") from exc
 
-    async def list_secrets(self) -> dict[str, Any]:
-        """List all secrets at the configured path."""
+    @retry(
+        stop=stop_after_attempt(_DEFAULT_MAX_RETRIES + 1),
+        wait=wait_exponential(multiplier=1, min=_DEFAULT_RETRY_MIN, max=_DEFAULT_RETRY_MAX),
+        retry=retry_if_exception(_is_retryable),
+        before_sleep=before_sleep_log(_logger, _logging.WARNING),
+        reraise=True,
+    )
+    def transit_decrypt(self, key_name: str, ciphertext: str) -> str:
+        """Decrypt ciphertext using Vault Transit Engine."""
+        client = self._get_client()
         try:
-            result = await self._request("GET", f"{self._kv_path}")
-            return result if isinstance(result, dict) else {}
-        except VaultKMSKeyError:
-            return {}
+            resp = client.post(
+                f"/v1/transit/decrypt/{key_name}",
+                json={"ciphertext": ciphertext},
+            )
+            resp.raise_for_status()
+            return resp.json()["data"]["plaintext"]
+        except Exception as exc:
+            raise self._classify_error(exc, "transit_decrypt") from exc
 
-    async def health(self) -> dict[str, Any]:
-        """Check Vault server health (sys/health endpoint)."""
-        return await self._request("GET", "/v1/sys/health")
+    @retry(
+        stop=stop_after_attempt(_DEFAULT_MAX_RETRIES + 1),
+        wait=wait_exponential(multiplier=1, min=_DEFAULT_RETRY_MIN, max=_DEFAULT_RETRY_MAX),
+        retry=retry_if_exception(_is_retryable),
+        before_sleep=before_sleep_log(_logger, _logging.WARNING),
+        reraise=True,
+    )
+    def kv_get(self, path: str) -> dict[str, Any]:
+        """Read a secret from KV v2."""
+        client = self._get_client()
+        try:
+            resp = client.get(f"/v1/{path}")
+            if resp.status_code == 404:
+                return {}
+            resp.raise_for_status()
+            data = resp.json()
+            # KV v2 wraps data under data.data
+            if "data" in data and isinstance(data["data"], dict):
+                inner = data["data"]
+                if "data" in inner:
+                    return inner["data"]
+                return inner
+            return data
+        except Exception as exc:
+            raise self._classify_error(exc, "kv_get") from exc
+
+    @retry(
+        stop=stop_after_attempt(_DEFAULT_MAX_RETRIES + 1),
+        wait=wait_exponential(multiplier=1, min=_DEFAULT_RETRY_MIN, max=_DEFAULT_RETRY_MAX),
+        retry=retry_if_exception(_is_retryable),
+        before_sleep=before_sleep_log(_logger, _logging.WARNING),
+        reraise=True,
+    )
+    def health(self) -> dict[str, Any]:
+        """Check Vault server health."""
+        client = self._get_client()
+        try:
+            resp = client.get("/v1/sys/health")
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:
+            raise self._classify_error(exc, "health") from exc
 
 
 # ---------------------------------------------------------------------------
-# HashiCorp Vault KMS Provider (Enterprise)
+# HashiCorp Vault KMS Provider
 # ---------------------------------------------------------------------------
-class HashiCorpVaultKMSProvider(AbstractKMS):
+class HashiCorpVaultKMSProvider(KMSProvider):
     """
-    Production-grade HashiCorp Vault KMS provider.
+    HashiCorp Vault provider implementing both KeyWrapper and SecretProvider.
 
-    Integrates with KV v2 secrets engine for secure audit key storage.
-    Supports key versioning, rotation, retry logic, async operations,
-    connection pooling, and comprehensive error handling.
+    Key Wrapping (DEK):
+        Uses Vault Transit Engine (/v1/transit/encrypt/:key, /v1/transit/decrypt/:key).
+
+    Audit Key Retrieval:
+        Uses KV v2 secrets engine (GET /v1/:mount/data/:path).
 
     Usage:
         provider = HashiCorpVaultKMSProvider()
-        # Or with explicit config:
-        provider = HashiCorpVaultKMSProvider(
-            addr="https://vault:8200",
-            token="hvs.xxx..."
-        )
+        wrapped = provider.wrap_key(dek_bytes)
+        dek = provider.unwrap_key(wrapped)
         key = provider.get_audit_key("v1")
-
-    Environment:
-        VAULT_ADDR, VAULT_TOKEN, VAULT_KV_PATH, VAULT_KV_MOUNT,
-        VAULT_TIMEOUT, VAULT_MAX_RETRIES, VAULT_RETRY_DELAY
     """
 
     def __init__(
         self,
         addr: str | None = None,
         token: str | None = None,
+        transit_key: str | None = None,
         kv_path: str | None = None,
         mount_point: str | None = None,
         timeout: float | None = None,
         max_retries: int | None = None,
-        retry_delay: float | None = None,
+        retry_min: float | None = None,
+        retry_max: float | None = None,
         verify_ssl: bool | None = None,
-        env_fallback: bool = True,
     ) -> None:
-        """
-        Initialize Vault KMS provider.
-
-        Args:
-            addr: Vault server URL. Defaults to VAULT_ADDR env var.
-            token: Vault auth token. Defaults to VAULT_TOKEN env var.
-            kv_path: KV v2 secrets path. Defaults to VAULT_KV_PATH env var.
-            mount_point: KV v2 mount point. Defaults to "secret".
-            timeout: HTTP client timeout in seconds.
-            max_retries: Maximum retry attempts for transient failures.
-            retry_delay: Base retry delay in seconds (exponential backoff).
-            verify_ssl: Whether to verify Vault TLS certificate.
-            env_fallback: If True, falls back to environment variables when
-                         explicit parameters are not provided.
-        """
-        # Build config from explicit params + env fallback
-        config_kwargs: dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if addr is not None:
-            config_kwargs["addr"] = addr
+            kwargs["addr"] = addr
         if token is not None:
-            config_kwargs["token"] = token
+            kwargs["token"] = token
+        if transit_key is not None:
+            kwargs["transit_key"] = transit_key
         if kv_path is not None:
-            config_kwargs["kv_path"] = kv_path
+            kwargs["kv_path"] = kv_path
         if mount_point is not None:
-            config_kwargs["mount_point"] = mount_point
+            kwargs["mount_point"] = mount_point
         if timeout is not None:
-            config_kwargs["timeout"] = timeout
+            kwargs["timeout"] = timeout
         if max_retries is not None:
-            config_kwargs["max_retries"] = max_retries
-        if retry_delay is not None:
-            config_kwargs["retry_delay"] = retry_delay
+            kwargs["max_retries"] = max_retries
+        if retry_min is not None:
+            kwargs["retry_min"] = retry_min
+        if retry_max is not None:
+            kwargs["retry_max"] = retry_max
         if verify_ssl is not None:
-            config_kwargs["verify_ssl"] = verify_ssl
+            kwargs["verify_ssl"] = verify_ssl
 
-        self._config = VaultKMSConfig(**config_kwargs)
-
-        # Validate config (will raise VaultKMSConfigurationError if invalid)
+        self._config = VaultKMSConfig(**kwargs)
         self._config.validate()
-
-        self._client: VaultKVClient | None = None
+        self._client: VaultClient | None = None
         self._cache: dict[str, bytes | None] = {}
-        self._cache_ttl: float = 300.0  # 5 minutes
-        self._cache_timestamps: dict[str, float] = {}
-
-        # Local env fallback for development/testing
+        self._cache_ts: dict[str, float] = {}
         self._local_fallback = self._load_env_keys()
 
     @staticmethod
     def _load_env_keys() -> dict[str, bytes]:
-        """Load keys from environment as fallback."""
+        """Load raw audit keys from env vars as fallback."""
         keys: dict[str, bytes] = {}
         for name, value in os.environ.items():
             if name.startswith("AUDIT_KEY_"):
@@ -380,176 +332,142 @@ class HashiCorpVaultKMSProvider(AbstractKMS):
             keys["v1"] = os.environ["AUDIT_KEY"].encode()
         return keys
 
-    async def _get_client(self) -> VaultKVClient:
-        """Get or create Vault KV client (lazy initialization)."""
+    def _get_client(self) -> VaultClient:
         if self._client is None:
-            self._client = VaultKVClient(self._config)
+            self._client = VaultClient(self._config)
         return self._client
 
-    async def close(self) -> None:
-        """Close the underlying HTTP client connection pool."""
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
+    # ------------------------------------------------------------------
+    # KeyWrapper interface (DEK wrapping via Transit Engine)
+    # ------------------------------------------------------------------
+
+    def wrap_key(self, plaintext_dek: bytes) -> str:
+        """
+        Wrap a DEK using Vault Transit Engine.
+
+        Args:
+            plaintext_dek: 32-byte DEK from Kyber768 KEM.
+
+        Returns:
+            Base64-encoded JSON blob with ciphertext and metadata.
+
+        Raises:
+            KeyWrapperError: If wrapping fails.
+            KeyWrapperAuthError: If Vault token is invalid.
+        """
+        client = self._get_client()
+        plaintext_b64 = base64.b64encode(plaintext_dek).decode()
+        ciphertext = client.transit_encrypt(self._config.transit_key, plaintext_b64)
+        payload = {
+            "v": 1,
+            "c": ciphertext,
+            "transit_key": self._config.transit_key,
+            "addr": self._config.addr,
+        }
+        return base64.b64encode(json.dumps(payload, sort_keys=True).encode()).decode()
+
+    def unwrap_key(self, wrapped_blob: str) -> bytes:
+        """
+        Unwrap a previously wrapped DEK using Vault Transit Engine.
+
+        Args:
+            wrapped_blob: The blob string returned by wrap_key().
+
+        Returns:
+            The original 32-byte DEK.
+
+        Raises:
+            KeyWrapperError: If unwrapping fails.
+            KeyWrapperAuthError: If Vault token is invalid.
+        """
+        try:
+            payload = json.loads(base64.b64decode(wrapped_blob))
+            ciphertext: str = payload["c"]
+        except (json.JSONDecodeError, KeyError, ValueError, Exception) as exc:
+            raise KeyWrapperError(f"Invalid wrapped blob format: {exc}") from exc
+
+        client = self._get_client()
+        plaintext_b64 = client.transit_decrypt(self._config.transit_key, ciphertext)
+        return base64.b64decode(plaintext_b64)
+
+    # ------------------------------------------------------------------
+    # SecretProvider interface (audit key via KV v2)
+    # ------------------------------------------------------------------
 
     def get_audit_key(self, version: str) -> bytes | None:
         """
         Retrieve an audit key from Vault KV v2 by version.
 
+        Tries (in order):
+          1. In-memory cache
+          2. Local env fallback
+          3. Vault KV v2 (GET /v1/:mount/data/:path)
+          4. None
+
         Args:
-            version: Key version identifier (e.g. "v1", "v2", "current")
+            version: Key version (e.g. "v1", "v2").
 
         Returns:
-            Key as bytes, or None if the key is not found.
-
-        Raises:
-            VaultKMSConnectionError: If Vault is unreachable after retries.
-            VaultKMSAuthError: If token is invalid or expired.
+            Key as bytes, or None if not found.
         """
-        # Check local cache first (in-memory, per-process)
         now = time.time()
+
+        # 1. Cache
         if version in self._cache:
-            ts = self._cache_timestamps.get(version, 0)
-            if now - ts < self._cache_ttl:
+            ts = self._cache_ts.get(version, 0)
+            if now - ts < _CACHE_TTL:
                 return self._cache[version]
 
-        # Check local env fallback (for dev/test environments)
+        # 2. Local env fallback
         if version in self._local_fallback:
             key = self._local_fallback[version]
             self._cache[version] = key
-            self._cache_timestamps[version] = now
+            self._cache_ts[version] = now
             return key
 
-        # Fetch from Vault KV v2 (synchronous wrapper around async call)
+        # 3. Vault KV v2
         try:
-            key = asyncio.run(self._get_audit_key_async(version))
+            client = self._get_client()
+            kv_path = f"{self._config.mount_point}/data/{self._config.kv_path}"
+            secrets = client.kv_get(kv_path)
+            raw = secrets.get(version)
+            if raw is None:
+                return None
+            key = raw.encode() if isinstance(raw, str) else raw
+            if len(key) < 32:
+                _logger.warning("Audit key %s from Vault is too short (%d bytes)", version, len(key))
+                return None
             self._cache[version] = key
-            self._cache_timestamps[version] = now
+            self._cache_ts[version] = now
             return key
-        except (VaultKMSConnectionError, VaultKMSAuthError) as exc:
-            # Fallback to local env keys on connection failure
-            if self._local_fallback:
-                key = self._local_fallback.get(version)
-                if key is not None:
-                    self._cache[version] = key
-                    self._cache_timestamps[version] = now
-                    return key
-            raise
-
-    async def _get_audit_key_async(self, version: str) -> bytes | None:
-        """Async implementation of get_audit_key."""
-        client = await self._get_client()
-        value = await client.get_secret(version)
-
-        if value is None:
+        except KeyWrapperError:
             return None
 
-        value = value.strip()
+    # ------------------------------------------------------------------
+    # Health check
+    # ------------------------------------------------------------------
 
-        # Validate key length
-        if len(value) < 32:
-            raise VaultKMSKeyError(
-                f"Audit key '{version}' from Vault is too short "
-                f"({len(value)} bytes, minimum 32). Check key configuration."
-            )
-
-        if len(value) > _MAX_KEY_SIZE:
-            raise VaultKMSKeyError(
-                f"Audit key '{version}' from Vault exceeds maximum size "
-                f"({len(value)} > {_MAX_KEY_SIZE})."
-            )
-
-        return value.encode("utf-8")
-
-    async def rotate_key(
-        self,
-        version: str,
-        key_value: str,
-    ) -> None:
-        """
-        Rotate an audit key by writing a new version to Vault KV v2.
-
-        Args:
-            version: Key version identifier (e.g. "v2", "v3")
-            key_value: New key value (minimum 32 characters)
-
-        Raises:
-            ValueError: If key_value is too short.
-            VaultKMSConnectionError: If Vault is unreachable.
-        """
-        if len(key_value) < 32:
-            raise ValueError(
-                f"New key must be at least 32 bytes (got {len(key_value)})"
-            )
-
-        client = await self._get_client()
-
-        # KV v2 expects data under a "data" key
-        payload: dict[str, Any] = {
-            "data": {
-                version: key_value,
-            },
-            "options": {
-                "max_versions": 10,
-            },
-        }
-
-        # Use raw request for write operations
-        path = f"/v1/{self._config.mount_point}/data/{self._config.kv_path}"
-        await client._request("POST", path, json_data=payload)
-
-        # Invalidate cache for this version
-        self._cache.pop(version, None)
-        self._cache_timestamps.pop(version, None)
-
-    async def list_key_versions(self) -> list[str]:
-        """List all available key versions from Vault."""
-        client = await self._get_client()
-        secrets = await client.list_secrets()
-        return [k for k in secrets.keys() if isinstance(k, str) and k.startswith("v")]
-
-    async def health_check(self) -> dict[str, Any]:
-        """
-        Perform a health check against the Vault server.
-
-        Returns:
-            dict with health status information.
-
-        Raises:
-            VaultKMSConnectionError: If Vault is unreachable.
-        """
-        client = await self._get_client()
+    def health_check(self) -> dict[str, Any]:
+        """Check Vault server health."""
+        client = self._get_client()
         try:
-            health = await client.health()
+            health = client.health()
             return {
                 "provider": "vault",
                 "addr": self._config.addr,
-                "kv_path": f"{self._config.mount_point}/{self._config.kv_path}",
+                "transit_key": self._config.transit_key,
                 "initialized": health.get("initialized", False),
                 "sealed": health.get("sealed", True),
-                "cluster_name": health.get("cluster_name", "unknown"),
                 "version": health.get("version", "unknown"),
+                "status": "available",
             }
-        except VaultKMSConnectionError as exc:
-            return {
-                "provider": "vault",
-                "addr": self._config.addr,
-                "status": "unreachable",
-                "error": str(exc),
-            }
+        except KeyWrapperError as exc:
+            return {"provider": "vault", "status": "error", "error": str(exc)}
+        except KeyWrapperAuthError as exc:
+            return {"provider": "vault", "status": "auth_error", "error": str(exc)}
 
-
-# ---------------------------------------------------------------------------
-# Legacy compatibility alias
-# ---------------------------------------------------------------------------
-HashiCorpVaultProvider = HashiCorpVaultKMSProvider
 
 __all__ = [
     "HashiCorpVaultKMSProvider",
-    "HashiCorpVaultProvider",
     "VaultKMSConfig",
-    "VaultKMSConnectionError",
-    "VaultKMSAuthError",
-    "VaultKMSKeyError",
-    "VaultKMSConfigurationError",
 ]

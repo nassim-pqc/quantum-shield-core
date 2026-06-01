@@ -33,5 +33,8 @@ hvac==1.2.1
 azure-keyvault-secrets==4.7.0
 azure-identity==1.16.1
 
+# --- Retry (KMS providers) ---
+tenacity>=8.2,<9.0
+
 # --- Config ---
 python-dotenv==1.0.1
