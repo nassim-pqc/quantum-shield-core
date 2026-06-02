@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging as _logging
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -28,8 +29,6 @@ try:
     _RUST_ENGINE_AVAILABLE = True
 except ImportError:
     pass
-
-import logging as _logging
 
 _logging.getLogger(__name__).info("rust_engine_status", extra={"loaded": _RUST_ENGINE_AVAILABLE})
 

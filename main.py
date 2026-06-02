@@ -34,15 +34,6 @@ from constants import (
     IntegrityDisplay,
 )
 from database import AsyncSessionLocal, check_db_connection, engine, get_db, init_db
-
-
-# Enterprise license validation (stub for open-source)
-def _validate_license_key() -> bool:
-    """Check if a valid enterprise license key is configured."""
-    license_key = os.environ.get("QSC_LICENSE_KEY", "")
-    return license_key.startswith("QSC-ENT-") and len(license_key) >= 32
-
-
 from models import ApiKey, AuditLog
 from observability import (
     AUDIT_WRITES,
@@ -53,6 +44,14 @@ from observability import (
     setup_opentelemetry,
 )
 from security_engine import LocalEnvKMS, SecurityEngine
+
+
+# Enterprise license validation (stub for open-source)
+def _validate_license_key() -> bool:
+    """Check if a valid enterprise license key is configured."""
+    license_key = os.environ.get("QSC_LICENSE_KEY", "")
+    return license_key.startswith("QSC-ENT-") and len(license_key) >= 32
+
 
 load_dotenv()
 configure_logging()
@@ -95,7 +94,14 @@ def _create_kms_provider(keys: dict[str, bytes]):
     provider = os.environ.get("KMS_PROVIDER", "local").lower()
     if provider in ("aws", "vault", "azure"):
         if not ENTERPRISE_LICENSED:
-            _ent_license.require_enterprise_license()  # raises HTTPException 402
+            try:
+                _ent_license.require_enterprise_license()  # raises HTTPException 402  # noqa: F821
+            except NameError:
+                from fastapi import HTTPException as _HTTPException
+                raise _HTTPException(
+                    status_code=402,
+                    detail="Enterprise license required for this KMS provider.",
+                ) from None
         if provider == "aws":
             from enterprise.kms.aws_kms import AWSKMSProvider
 

@@ -2,31 +2,27 @@
 constants.py — Shared application constants and enumerations.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class _StrEnum(str, Enum):
-    pass
-
-
-class ApiRole(_StrEnum):
+class ApiRole(StrEnum):
     OPERATOR = "operator"
     AUDITOR = "auditor"
 
 
-class AuditAction(_StrEnum):
+class AuditAction(StrEnum):
     KEY_GENERATE = "KEY_GENERATE"
     SEAL = "SEAL"
     UNSEAL = "UNSEAL"
 
 
-class IntegrityStatus(_StrEnum):
+class IntegrityStatus(StrEnum):
     PENDING = "PENDING"
     OK = "OK"
     FAIL = "FAIL"
 
 
-class IntegrityDisplay(_StrEnum):
+class IntegrityDisplay(StrEnum):
     OK = "OK"
     FAIL = "FAIL"
 

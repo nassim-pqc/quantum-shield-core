@@ -135,7 +135,7 @@ try:
         print(f"  {C_GREEN}Message du serveur : {attack_resp.json()['detail']}{C_RESET}")
     else:
         print(
-            f"  {C_RED}❌ Échec de la protection : Le serveur a répondu {attack_resp.status_code}{C_RESET}"
+            f"  {C_RED}Échec: Le serveur a répondu {attack_resp.status_code}{C_RESET}"
         )
 
     # ------------------------------------------------------------------

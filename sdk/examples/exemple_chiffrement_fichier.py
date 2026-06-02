@@ -9,6 +9,7 @@ Prérequis :
     docker compose up (from project root)
 """
 
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -52,8 +53,6 @@ print("\n[2] Encrypting file...")
 print(f"  Source      : {source_path}")
 print(f"  Context AAD : {context}")
 sealed = client.seal_file(keypair["public_key_b64"], source_path, context)
-import json
-
 with open(encrypted_path, "w") as f:
     json.dump(sealed, f)
 print(f"  Encrypted → {encrypted_path}")

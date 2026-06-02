@@ -104,13 +104,15 @@ def write_report(results: dict, output_path: str, iterations: int) -> None:
         "# Quantum Shield Core — Benchmark Results",
         "",
         f"**Generated:** {ts}  ",
-        f"**Host:** {platform.system()} {platform.machine()} — Python {platform.python_version()}  ",
+        f"**Host:** {platform.system()} {platform.machine()} — "
+        f"Python {platform.python_version()}  ",
         "**Algorithm:** ML-KEM-768 (Kyber768) + AES-256-GCM  ",
         f"**Iterations per payload:** {iterations}  ",
         "",
         "## Summary Table",
         "",
-        "| Payload | Seal avg (ms) | Seal p95 (ms) | Unseal avg (ms) | Throughput (MB/s) | Ops/sec (seal) | RSS Δ (MB) |",
+        "| Payload | Seal avg (ms) | Seal p95 (ms) | Unseal avg (ms) | "
+        "Throughput (MB/s) | Ops/sec (seal) | RSS Δ (MB) |",
         "|---------|---------------|---------------|-----------------|-------------------|----------------|------------|",
     ]
     for label, m in results.items():
@@ -125,7 +127,7 @@ def write_report(results: dict, output_path: str, iterations: int) -> None:
             "",
             "## Interpretation",
             "",
-            "- **1 KB**: dominated by Kyber encapsulation overhead; suitable for token/session wrapping.",
+            "- **1 KB**: dominated by Kyber encapsulation; suitable for token/session wrapping.",
             "- **1 MB**: throughput reflects AES-GCM bulk path; typical document encryption.",
             "- **10 MB**: stress test for RAM limits (API enforces 20 MB max per request).",
             "",
@@ -162,10 +164,10 @@ def write_chart(results: dict, output_dir: str) -> None:
         return
 
     labels = list(results.keys())
-    seal_avgs = [results[l]["seal_ms_avg"] for l in labels]
-    seal_p95s = [results[l]["seal_ms_p95"] for l in labels]
-    unseal_avgs = [results[l]["unseal_ms_avg"] for l in labels]
-    throughput = [results[l]["throughput_mbps"] for l in labels]
+    seal_avgs = [results[val]["seal_ms_avg"] for val in labels]
+    seal_p95s = [results[val]["seal_ms_p95"] for val in labels]
+    unseal_avgs = [results[val]["unseal_ms_avg"] for val in labels]
+    throughput = [results[val]["throughput_mbps"] for val in labels]
 
     x = range(len(labels))
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))

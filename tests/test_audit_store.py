@@ -132,7 +132,7 @@ class TestGetLogs:
         await store_log(_sample_log(action="UNSEAL"), "sig2", test_db)
         await test_db.commit()
         logs = await get_logs(test_db, action_filter="SEAL")
-        assert all(l.action == "SEAL" for l in logs)
+        assert all(log.action == "SEAL" for log in logs)
         assert len(logs) == 1
 
     @pytest.mark.asyncio
@@ -142,7 +142,7 @@ class TestGetLogs:
         await store_log(_sample_log(user="bob"), "sig2", test_db)
         await test_db.commit()
         logs = await get_logs(test_db, actor_filter="alice")
-        assert all(l.actor == "alice" for l in logs)
+        assert all(log.actor == "alice" for log in logs)
         assert len(logs) == 1
 
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ class TestGetLogs:
     async def test_get_logs_ordered_by_id_desc(self, test_db: AsyncSession):
         """Verify logs are ordered by ID descending (newest first)."""
         e1 = await store_log(_sample_log(target="doc1"), "sig1", test_db)
-        e2 = await store_log(_sample_log(target="doc2"), "sig2", test_db)
+        await store_log(_sample_log(target="doc2"), "sig2", test_db)
         e3 = await store_log(_sample_log(target="doc3"), "sig3", test_db)
         await test_db.commit()
         logs = await get_logs(test_db)

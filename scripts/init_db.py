@@ -14,14 +14,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+
+from database import AsyncSessionLocal, init_db  # noqa: E402
+from models import ApiKey  # noqa: E402
 
 load_dotenv()
-
-from sqlalchemy import select
-
-from database import AsyncSessionLocal, init_db
-from models import ApiKey
 
 
 async def seed_api_keys() -> None:
