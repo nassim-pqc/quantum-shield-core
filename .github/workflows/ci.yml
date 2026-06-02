@@ -83,6 +83,7 @@ jobs:
           maturin develop
       - name: Pre-install liboqs system-wide
         run: |
+          rm -rf liboqs
           git clone --branch main https://github.com/open-quantum-safe/liboqs.git
           cd liboqs
           mkdir build && cd build
