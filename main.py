@@ -98,6 +98,7 @@ def _create_kms_provider(keys: dict[str, bytes]):
                 _ent_license.require_enterprise_license()  # raises HTTPException 402  # noqa: F821
             except NameError:
                 from fastapi import HTTPException as _HTTPException
+
                 raise _HTTPException(
                     status_code=402,
                     detail="Enterprise license required for this KMS provider.",

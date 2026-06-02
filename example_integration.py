@@ -134,9 +134,7 @@ try:
         print_success("L'attaque a échoué. L'enclave a bloqué le déchiffrement (Code 401).")
         print(f"  {C_GREEN}Message du serveur : {attack_resp.json()['detail']}{C_RESET}")
     else:
-        print(
-            f"  {C_RED}Échec: Le serveur a répondu {attack_resp.status_code}{C_RESET}"
-        )
+        print(f"  {C_RED}Échec: Le serveur a répondu {attack_resp.status_code}{C_RESET}")
 
     # ------------------------------------------------------------------
     # ÉPILOQUE : Conclusion

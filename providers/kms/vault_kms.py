@@ -171,7 +171,7 @@ class VaultClient:
                     f"Vault transient HTTP {exc.response.status_code}: {msg}"
                 )
             return KeyWrapperError(f"Vault HTTP {exc.response.status_code}: {msg}")
-        if isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
+        if isinstance(exc, httpx.TimeoutException | httpx.ConnectError):
             return KeyWrapperTransientError(f"Vault connection error: {msg}")
         return KeyWrapperTransientError(f"Unexpected Vault error: {msg}")
 
