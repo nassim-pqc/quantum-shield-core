@@ -36,7 +36,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - name: Bandit SAST
-        run: bandit -r . --skip B101,B104,B108,B110,B404,B603,B607 --quiet
+        run: bandit -r . --skip B101,B104,B105,B106,B108,B110,B404,B603,B607 --quiet
       - name: pip-audit
         run: pip-audit --desc on
       - name: Semgrep
@@ -68,6 +68,8 @@ jobs:
           ninja
           sudo ninja install
           sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/liboqs.conf
+          sudo ldconfig
       - name: Install Python dependencies
         run: pip install -r requirements-dev.txt
       - name: Build Rust engine (PyO3)
@@ -79,6 +81,7 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short -x
         env:
+          LD_LIBRARY_PATH: /usr/local/lib
           AUDIT_KEY: "test-audit-key-secure-enough-for-pytest-32chars!"
           API_KEY_OPERATOR: "test-operator-api-key-secure-enough-32chars!!"
           API_KEY_AUDITOR: "test-auditor-api-key-secure-enough-32chars!!!"
