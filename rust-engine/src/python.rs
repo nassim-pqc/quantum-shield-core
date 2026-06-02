@@ -24,6 +24,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use pyo3::Bound;
 
 use crate::error::CryptoError;
 use crate::SecurityEngine as RustSecurityEngine;
@@ -243,7 +244,7 @@ impl PySecurityEngine {
 /// Memory-safe, auditable, post-quantum cryptography for Python.
 #[pymodule]
 #[pyo3(name = "quantum_shield_engine")]
-fn quantum_shield_engine(_py: Python, m: &PyModule) -> PyResult<()> {
+fn quantum_shield_engine(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySecurityEngine>()?;
     m.add("__version__", "1.0.0")?;
     m.add("PQC_ALGORITHM", crate::PQC_ALGORITHM)?;
