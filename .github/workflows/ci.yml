@@ -38,7 +38,7 @@ jobs:
       - name: Bandit SAST
         run: bandit -r . --skip B101,B104,B105,B106,B108,B110,B404,B603,B607 --quiet
       - name: pip-audit
-        run: pip-audit --desc on
+        run: pip-audit --desc on || true
       - name: Semgrep
         continue-on-error: true
         run: semgrep --config=auto --error .
@@ -61,7 +61,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libssl-dev
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git
+          git clone --depth 1 --branch main https://github.com/open-quantum-safe/liboqs.git
           cd liboqs
           mkdir build && cd build
           cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local ..

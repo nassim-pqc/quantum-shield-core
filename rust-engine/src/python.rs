@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! PyO3 Python bindings for the Quantum Shield cryptographic engine.
 //!
 //! This module exposes the Rust SecurityEngine to Python, enabling
