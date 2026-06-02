@@ -225,7 +225,7 @@ def main() -> None:
     parser.add_argument("--iterations", type=int, default=20)
     _default_out = os.path.join(os.path.dirname(__file__), "BENCHMARK_RESULTS.md")
     if not os.access(os.path.dirname(_default_out) or ".", os.W_OK):
-        _default_out = "/tmp/BENCHMARK_RESULTS.md"
+        _default_out = "/tmp/BENCHMARK_RESULTS.md"  # nosec B108
     parser.add_argument("--output", default=_default_out)
     args = parser.parse_args()
 

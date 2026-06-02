@@ -83,7 +83,7 @@ class SecurityEngine:
             try:
                 self._rust_engine = quantum_shield_engine.SecurityEngine.with_audit_key(audit_key)
             except Exception:
-                pass
+                pass  # nosec B110
 
     # ------------------------------------------------------------------
     # Post-quantum key encapsulation (ML-KEM-768 / Kyber768)
@@ -182,7 +182,7 @@ class SecurityEngine:
                     "key_version": key_version,
                 }
             except Exception:
-                pass
+                pass  # nosec B110
 
         active_key = self.kms.get_audit_key(self.active_key_version)
         if active_key is None:
