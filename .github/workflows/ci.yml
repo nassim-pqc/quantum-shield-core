@@ -61,7 +61,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libssl-dev
-          git clone --depth 1 --branch main https://github.com/open-quantum-safe/liboqs.git
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git
           cd liboqs
           mkdir build && cd build
           cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local ..
