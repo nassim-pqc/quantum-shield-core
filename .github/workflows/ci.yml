@@ -89,7 +89,7 @@ jobs:
           cmake -DBUILD_SHARED_LIBS=ON ..
           make -j
           sudo make install
-          sudo ldconfig
+          sudo ldconfig || true
       - name: Run tests
         run: pytest tests/ -v --tb=short -x
         env:
