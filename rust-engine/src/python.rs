@@ -141,8 +141,8 @@ impl PySecurityEngine {
             .map_err(py_err)?;
 
         Ok((
-            PyBytes::new(py, &nonce).into(),
-            PyBytes::new(py, &ciphertext).into(),
+            PyBytes::new_bound(py, &nonce).into(),
+            PyBytes::new_bound(py, &ciphertext).into(),
         ))
     }
 
@@ -173,7 +173,7 @@ impl PySecurityEngine {
             .decrypt_aes_gcm(shared_secret, nonce, ciphertext, aad)
             .map_err(py_err)?;
 
-        Ok(PyBytes::new(py, &plaintext).into())
+        Ok(PyBytes::new_bound(py, &plaintext).into())
     }
 
     /// Generate a signed audit log entry (HMAC-SHA256).

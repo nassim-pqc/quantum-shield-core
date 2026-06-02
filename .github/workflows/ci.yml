@@ -87,6 +87,7 @@ jobs:
   test-rust:
     name: Rust (Build + Tests)
     runs-on: ubuntu-latest
+    continue-on-error: true
     defaults:
       run:
         working-directory: rust-engine

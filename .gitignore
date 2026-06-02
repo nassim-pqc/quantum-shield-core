@@ -9,52 +9,13 @@ secrets/
 credentials/
 
 # --- Python ---
-__pycache__/
-*.py[cod]
 .venv/
 venv/
 ENV/
 env/
-*.egg
-*.egg-info/
-.eggs/
-dist/
-build/
-
-# --- Tests ---
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-
-# --- Linters ---
-.ruff_cache/
-.mypy_cache/
-
-# --- Databases ---
-*.db
-*.sqlite
-*.sqlite3
-
-# --- Editors ---
-.vscode/
-# --- Secrets ---
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.p12
-secrets/
-credentials/
-
-# --- Python ---
 __pycache__/
 *.py[cod]
-.venv/
-venv/
-ENV/
-env/
+*.pyc
 *.egg
 *.egg-info/
 .eggs/
@@ -88,13 +49,6 @@ htmlcov/
 logs/
 tmp/
 .cache/
-# Rust
+
+# --- Rust ---
 rust-engine/target/
-
-# Python
-.venv/
-__pycache__/
-*.pyc
-
-# macOS
-.DS_Store
