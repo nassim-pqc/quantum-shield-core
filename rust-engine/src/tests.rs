@@ -267,7 +267,7 @@ mod tests {
         let engine2 = SecurityEngine::with_audit_key(b"second-audit-key-minimum-32-bytes-b!")
             .expect("Engine2 init");
 
-        let (log1, sig1, _) = engine1
+        let (_log1, sig1, _) = engine1
             .generate_signed_log("SEAL", "doc.pdf", "operator")
             .expect("Engine1 sign");
         let (_, sig2, _) = engine2
