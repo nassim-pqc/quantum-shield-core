@@ -84,6 +84,8 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short -x
         env:
+          OQS_BRANCH: main
+          LIBOQS_BRANCH: main
           LD_LIBRARY_PATH: /usr/local/lib
           AUDIT_KEY: "test-audit-key-secure-enough-for-pytest-32chars!"
           API_KEY_OPERATOR: "test-operator-api-key-secure-enough-32chars!!"
