@@ -81,6 +81,15 @@ jobs:
           source .venv/bin/activate
           pip install maturin
           maturin develop
+      - name: Pre-install liboqs system-wide
+        run: |
+          git clone --branch main https://github.com/open-quantum-safe/liboqs.git
+          cd liboqs
+          mkdir build && cd build
+          cmake -DBUILD_SHARED_LIBS=ON ..
+          make -j
+          sudo make install
+          sudo ldconfig
       - name: Run tests
         run: pytest tests/ -v --tb=short -x
         env:
