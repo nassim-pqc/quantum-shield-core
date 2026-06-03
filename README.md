@@ -141,13 +141,74 @@ The [evidence-pack/](evidence-pack/) directory contains verifiable documentation
 - [License Review](evidence-pack/license-review.md)
 - [Index](evidence-pack/index.md)
 
+## Proof of Usage
+
+A complete proof of usage package is available in the [`evidence/`](evidence/) directory:
+
+- [Proof of Usage README](evidence/README.md) — Project overview and verification guide
+- [Proof of Usage Report](evidence/PROOF_OF_USAGE_REPORT.md) — Full technical evidence report
+- [Buyer One-Pager](evidence/BUYER_ONE_PAGER.md) — Executive summary for evaluation
+- [Video Demo Script](evidence/VIDEO_DEMO_SCRIPT.md) — 3-minute recording script
+- [Demo Commands](evidence/DEMO_COMMANDS.md) — All commands verified against the codebase
+- [Screenshot Checklist](evidence/SCREENSHOT_CHECKLIST.md) — Recommended captures
+- [Stateless Explanation](evidence/STATELESS_EXPLANATION.md) — Architecture explained simply
+
+## Enterprise Capabilities
+
+| Capability | Status | Detail |
+|-----------|--------|--------|
+| Post-quantum encryption | ✅ Working | ML-KEM-768 (Kyber768) + AES-256-GCM |
+| Stateless architecture | ✅ Working | No user private keys stored server-side |
+| HMAC audit trail | ✅ Working | Tamper-evident, append-only, key rotation |
+| AWS KMS integration | ✅ Implemented | DEK wrapping, retry, error classification |
+| HashiCorp Vault integration | ✅ Implemented | Transit Engine + KV v2 |
+| Azure Key Vault integration | ✅ Implemented | Key wrapping, Identity auth |
+| Python SDK | ✅ Complete | Typed client with retry, file methods |
+| Go SDK | ✅ Complete | Idiomatic, rate-limited, TLS 1.2+ |
+| CI/CD | ✅ Configured | GitHub Actions (lint, security, test, build) |
+| Docker deployment | ✅ Working | Multi-stage build, health checks |
+| Helm chart | ✅ Available | Linted, configurable |
+| Observability | ✅ Working | Prometheus + OpenTelemetry + JSON logs |
+
+## Current Maturity
+
+| Aspect | Status |
+|--------|--------|
+| Core encryption engine | Working, tested (139 tests) |
+| API endpoints | Complete, documented (9 endpoints) |
+| Audit trail | Working, HMAC-signed |
+| KMS providers (local) | Working |
+| KMS providers (AWS/Vault/Azure) | Implemented, enterprise-licensed |
+| Python SDK | Complete, tested |
+| Go SDK | Complete, tested |
+| Docker deployment | Working |
+| CI/CD pipeline | GitHub Actions configured |
+| Observability | Prometheus + OpenTelemetry |
+| Documentation | Comprehensive (20+ documents) |
+
+**Pre-commercial status**: This is a technical asset ready for POC, integration, or acquisition. It does not yet have revenue, production customers, or an independent cryptographic audit.
+
+## Known Limitations
+
+| Limitation | Impact | Mitigation |
+|------------|--------|------------|
+| No independent crypto audit | Required before production use | Budget $30K–$80K for audit |
+| No revenue or customers | No market validation yet | Start with POC / design partners |
+| No SOC 2 / ISO 27001 | Required for enterprise procurement | 6–12 month certification process |
+| Enterprise KMS requires license | AWS/Vault/Azure not in community edition | Enterprise licensing model |
+| No bug bounty program | No external security feedback | Establish program |
+| Single developer | Bus factor risk | Hire or acquire team |
+
 ## Roadmap
 
+- Independent cryptographic audit
 - CI/CD pipeline automation (GitHub Actions)
 - PyPI package publication for Python SDK
 - KMS provider implementations (AWS, Vault, Azure)
 - Rust native ML-KEM-768 via liboqs-sys
 - Hash-chain verification for audit trail
+- SOC 2 / ISO 27001 certification
+- Additional SDKs (Rust, Java, Node.js)
 
 ## Documentation
 
