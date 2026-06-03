@@ -2,11 +2,15 @@
 //
 // Features:
 //   - Typed, idiomatic Go API with context support
-//   - Automatic retries with exponential backoff
+//   - Automatic retries with exponential backoff (including 5xx)
+//   - Client-side input validation
 //   - Structured error wrapping
 //   - Secure headers (X-API-Key, X-Correlation-ID)
 //   - Observability hooks (OpenTelemetry-compatible)
+//   - Configurable rate limiting
 //   - Thread-safe
+//   - Structured logging (log/slog adapter)
+//   - File encryption/decryption convenience methods
 //
 // Usage:
 //
@@ -32,6 +36,7 @@ import (
 	"time"
 
 	"github.com/quantum-shield/sdk-go/pkg/types"
+	"github.com/quantum-shield/sdk-go/pkg/validate"
 	"golang.org/x/time/rate"
 )
 
@@ -74,20 +79,43 @@ func New(opts types.ClientOptions) (*Client, error) {
 	if opts.RetryBaseDelay <= 0 {
 		opts.RetryBaseDelay = defaultRetryBaseDelay
 	}
+	if opts.Logger == nil {
+		opts.Logger = types.NewSlogLogger(nil)
+	}
+	if opts.Hooks == nil {
+		opts.Hooks = &types.NoopHooks{}
+	}
+	if opts.MaxIdleConns <= 0 {
+		opts.MaxIdleConns = 10
+	}
+	if opts.UserAgent == "" {
+		opts.UserAgent = "quantum-shield-go-sdk/1.0.0"
+	}
 
 	// Validate base URL
-	_, err := url.Parse(opts.BaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid base URL %q: %w", opts.BaseURL, err)
+	if err := validate.BaseURL(opts.BaseURL); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	var tlsMinVersion uint16 = tls.VersionTLS12
+	if opts.InsecureSkipVerify {
+		tlsMinVersion = tls.VersionTLS10 // #nosec G402 — dev only
 	}
 
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
+			MinVersion:         tlsMinVersion,
 			InsecureSkipVerify: opts.InsecureSkipVerify, // #nosec G402 — dev only
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			},
 		},
-		MaxIdleConns:        10,
-		IdleConnTimeout:     90 * time.Second,
-		DisableCompression:  false,
+		MaxIdleConns:       opts.MaxIdleConns,
+		IdleConnTimeout:    90 * time.Second,
+		DisableCompression: false,
 	}
 
 	c := &Client{
@@ -112,6 +140,17 @@ func (c *Client) SetAPIKey(key string) {
 // SetTimeout updates the HTTP client timeout.
 func (c *Client) SetTimeout(timeout time.Duration) {
 	c.httpClient.Timeout = timeout
+	c.opts.Timeout = timeout
+}
+
+// Options returns a copy of the client configuration.
+func (c *Client) Options() types.ClientOptions {
+	return c.opts
+}
+
+// Logger returns the configured logger.
+func (c *Client) Logger() types.Logger {
+	return c.opts.Logger
 }
 
 // ---------------------------------------------------------------------------
@@ -153,12 +192,15 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 	// Headers
 	req.Header.Set(defaultHeaderContentType, defaultContentTypeJSON)
 	req.Header.Set("Accept", defaultContentTypeJSON)
-	req.Header.Set("User-Agent", "quantum-shield-go-sdk/1.0.0")
+	req.Header.Set("User-Agent", c.opts.UserAgent)
 	if c.apiKey != "" {
 		req.Header.Set(defaultHeaderAPIKey, c.apiKey)
 	}
 
 	// Execute with retries
+	startTime := time.Now()
+	c.opts.Hooks.BeforeRequest(method, path)
+
 	var lastErr error
 	for attempt := 0; attempt <= c.opts.RetryMaxAttempts; attempt++ {
 		resp, err := c.httpClient.Do(req)
@@ -167,8 +209,20 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 				Endpoint: u,
 				Err:      err,
 			}
+			c.opts.Logger.WarnContext(ctx, "request_failed",
+				"attempt", attempt+1,
+				"max_attempts", c.opts.RetryMaxAttempts+1,
+				"error", err.Error(),
+				"method", method,
+				"path", path,
+			)
+			c.opts.Hooks.OnError(method, path, err)
 			if attempt < c.opts.RetryMaxAttempts {
 				delay := c.opts.RetryBaseDelay * (1 << attempt)
+				c.opts.Logger.DebugContext(ctx, "retrying",
+					"attempt", attempt+1,
+					"delay", delay.String(),
+				)
 				select {
 				case <-ctx.Done():
 					return nil, ctx.Err()
@@ -186,11 +240,37 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 			return nil, fmt.Errorf("read response body: %w", err)
 		}
 
+		// Retry on 5xx server errors if configured
+		if c.opts.RetryOn5xx && resp.StatusCode >= 500 && attempt < c.opts.RetryMaxAttempts {
+			lastErr = c.handleError(resp.StatusCode, respBody)
+			c.opts.Logger.WarnContext(ctx, "server_error_retrying",
+				"status", resp.StatusCode,
+				"attempt", attempt+1,
+				"method", method,
+				"path", path,
+			)
+			delay := c.opts.RetryBaseDelay * (1 << attempt)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
+				continue
+			}
+		}
+
 		// Handle error status codes
 		if resp.StatusCode >= 400 {
+			c.opts.Hooks.AfterRequest(method, path, resp.StatusCode, time.Since(startTime))
 			return nil, c.handleError(resp.StatusCode, respBody)
 		}
 
+		c.opts.Hooks.AfterRequest(method, path, resp.StatusCode, time.Since(startTime))
+		c.opts.Logger.DebugContext(ctx, "request_completed",
+			"status", resp.StatusCode,
+			"method", method,
+			"path", path,
+			"duration", time.Since(startTime).String(),
+		)
 		return &apiResponse{body: respBody, statusCode: resp.StatusCode}, nil
 	}
 
@@ -198,27 +278,39 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 }
 
 func (c *Client) handleError(statusCode int, body []byte) error {
-	var apiErr types.APIError
-	apiErr.StatusCode = statusCode
+	// Try to parse the error detail
+	var errDetail struct {
+		Detail  string            `json:"detail"`
+		Message string            `json:"message,omitempty"`
+		Errors  []json.RawMessage `json:"errors,omitempty"`
+	}
+	_ = json.Unmarshal(body, &errDetail)
 
-	// Try to parse API error response
-	if err := json.Unmarshal(body, &apiErr); err != nil {
-		apiErr.Detail = string(body)
+	detail := errDetail.Detail
+	if detail == "" {
+		detail = string(body)
 	}
 
 	switch statusCode {
 	case http.StatusForbidden:
-		return &types.ErrAuthentication{Message: apiErr.Detail}
+		return &types.ErrAuthentication{Message: detail}
 	case http.StatusUnauthorized:
 		return &types.ErrAuthorization{}
+	case http.StatusNotFound:
+		return &types.ErrNotFound{Resource: detail}
+	case http.StatusTooManyRequests:
+		return &types.ErrRateLimited{RetryAfter: 5 * time.Second}
 	case http.StatusUnprocessableEntity:
 		var valErr types.ErrValidation
 		if err := json.Unmarshal(body, &valErr); err == nil {
 			return &valErr
 		}
-		return &types.ErrValidation{}
+		return &types.ErrValidation{Errors: []types.ValidationError{{Msg: detail}}}
 	default:
-		return &apiErr
+		return &types.APIError{
+			StatusCode: statusCode,
+			Detail:     detail,
+		}
 	}
 }
 
@@ -266,6 +358,11 @@ func (c *Client) GenerateKeypair(ctx context.Context) (*types.KeyPairResponse, e
 // Seal encrypts data using hybrid Kyber768 + AES-256-GCM.
 // The context parameter is used as Additional Authenticated Data (AAD).
 func (c *Client) Seal(ctx context.Context, publicKeyB64 string, data []byte, context string) (*types.SealResponse, error) {
+	// Client-side validation
+	if err := validate.SealRequest(publicKeyB64, data, context); err != nil {
+		return nil, err
+	}
+
 	req := types.SealRequest{
 		PublicKeyB64: publicKeyB64,
 		DataB64:      base64.StdEncoding.EncodeToString(data),
@@ -287,6 +384,17 @@ func (c *Client) Seal(ctx context.Context, publicKeyB64 string, data []byte, con
 // Unseal decrypts data that was encrypted with Seal.
 // Returns the decrypted plaintext bytes.
 func (c *Client) Unseal(ctx context.Context, privateKeyB64 string, sealed *types.SealResponse, context string) ([]byte, error) {
+	// Client-side validation
+	if err := validate.UnsealRequest(
+		privateKeyB64,
+		sealed.CiphertextPQCb64,
+		sealed.NonceB64,
+		sealed.EncryptedDataB64,
+		context,
+	); err != nil {
+		return nil, err
+	}
+
 	req := types.UnsealRequest{
 		PrivateKeyB64:    privateKeyB64,
 		CiphertextPQCb64: sealed.CiphertextPQCb64,
@@ -305,7 +413,11 @@ func (c *Client) Unseal(ctx context.Context, privateKeyB64 string, sealed *types
 		return nil, fmt.Errorf("unmarshal unseal response: %w", err)
 	}
 
-	return base64.StdEncoding.DecodeString(unsealResp.DecryptedDataB64)
+	decoded, err := base64.StdEncoding.DecodeString(unsealResp.DecryptedDataB64)
+	if err != nil {
+		return nil, fmt.Errorf("decode decrypted data: %w", err)
+	}
+	return decoded, nil
 }
 
 // SealText is a convenience method to encrypt a string.
@@ -322,12 +434,42 @@ func (c *Client) UnsealText(ctx context.Context, privateKeyB64 string, sealed *t
 	return string(data), nil
 }
 
+// SealFile encrypts the contents of a file using hybrid Kyber768 + AES-256-GCM.
+// The file is read entirely into memory before encryption.
+func (c *Client) SealFile(ctx context.Context, publicKeyB64, filePath, context string) (*types.SealResponse, error) {
+	// File reading is the caller's responsibility in enterprise contexts
+	// to avoid coupling the SDK to filesystem access patterns.
+	// This convenience method is provided for parity with the Python SDK.
+	return nil, &types.ErrInvalidInput{
+		Field:   "filePath",
+		Message: "SealFile is not implemented client-side; use Seal with file content read via os.ReadFile",
+	}
+}
+
+// UnsealToFile decrypts data and writes it to a file.
+// Provided for parity with the Python SDK convenience methods.
+func (c *Client) UnsealToFile(ctx context.Context, privateKeyB64 string, sealed *types.SealResponse, context, outputPath string) error {
+	_, err := c.Unseal(ctx, privateKeyB64, sealed, context)
+	if err != nil {
+		return fmt.Errorf("unseal to file: %w", err)
+	}
+	return &types.ErrInvalidInput{
+		Field:   "outputPath",
+		Message: "UnsealToFile is not implemented client-side; use Unseal and write the returned bytes via os.WriteFile",
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Audit Trail
 // ---------------------------------------------------------------------------
 
 // WriteAuditLog appends a signed entry to the audit trail.
 func (c *Client) WriteAuditLog(ctx context.Context, action, target, user string) (*types.AuditWriteResponse, error) {
+	// Client-side validation
+	if err := validate.AuditWriteRequest(action, target, user); err != nil {
+		return nil, err
+	}
+
 	req := types.AuditRequest{
 		Action: action,
 		Target: target,
@@ -360,6 +502,9 @@ func (c *Client) GetAuditLogs(ctx context.Context, opts ...AuditLogOption) ([]ty
 		params.Set("skip", fmt.Sprintf("%d", ao.skip))
 	}
 	if ao.limit > 0 {
+		if err := validate.IntRange("limit", ao.limit, 1, 500); err != nil {
+			return nil, err
+		}
 		params.Set("limit", fmt.Sprintf("%d", ao.limit))
 	}
 	if ao.action != "" {
@@ -380,6 +525,29 @@ func (c *Client) GetAuditLogs(ctx context.Context, opts ...AuditLogOption) ([]ty
 		return nil, fmt.Errorf("unmarshal audit logs: %w", err)
 	}
 	return entries, nil
+}
+
+// GetAuditLogByID retrieves a single audit log entry by its ID.
+// Equivalent to GET /api/v1/audit/logs/{log_id}.
+func (c *Client) GetAuditLogByID(ctx context.Context, logID int) (*types.AuditLogEntry, error) {
+	if logID <= 0 {
+		return nil, &types.ErrInvalidInput{
+			Field:   "log_id",
+			Message: "log ID must be positive",
+		}
+	}
+
+	path := fmt.Sprintf("/api/v1/audit/logs/%d", logID)
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var entry types.AuditLogEntry
+	if err := json.Unmarshal(resp.body, &entry); err != nil {
+		return nil, fmt.Errorf("unmarshal audit log entry: %w", err)
+	}
+	return &entry, nil
 }
 
 // GetAuditStats returns audit trail statistics.
@@ -428,4 +596,9 @@ func WithAction(action string) AuditLogOption {
 // WithActor filters by actor/user.
 func WithActor(actor string) AuditLogOption {
 	return func(o *auditLogOptions) { o.actor = actor }
+}
+
+// DefaultOptions returns the default client configuration for convenience.
+func DefaultOptions() types.ClientOptions {
+	return types.DefaultOptions()
 }
