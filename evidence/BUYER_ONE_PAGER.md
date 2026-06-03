@@ -72,6 +72,10 @@ Docker + Helm          →  Deployment
 | Docker | Working | Multi-stage build, health checks |
 | Helm chart | Available | Linted, configurable |
 | Documentation | Comprehensive | 20+ docs, guides, ADRs |
+| Performance benchmarks | Automated | JSON + Markdown reports, regression detection |
+| Container hardening | Available | Dockerfile.hardened, Kubernetes manifests |
+| FIPS readiness | FIPS-aware | Uses FIPS-approved algorithms (not certified) |
+| Side-channel readiness | Side-channel-aware | Constant-time comparison, hardened primitives |
 
 ---
 

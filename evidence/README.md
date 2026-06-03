@@ -297,6 +297,10 @@ pytest tests/ -v --tb=short
 | CI/CD | GitHub Actions configured |
 | Observability | Prometheus + OpenTelemetry |
 | Documentation | Comprehensive |
+| Performance benchmarks | Automated (JSON + Markdown) |
+| Container hardening | Hardened Dockerfile available |
+| FIPS readiness | FIPS-aware (not certified) |
+| Side-channel readiness | Side-channel-aware (not verified) |
 | External crypto audit | **Not yet performed** |
 | Revenue | **None yet** |
 | Production customers | **None yet** |

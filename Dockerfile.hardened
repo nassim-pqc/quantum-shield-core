@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# STAGE 1 — Build liboqs native shared library (pinned release)
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake git ninja-build libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG LIBOQS_VERSION=0.14.0
+RUN git clone --branch ${LIBOQS_VERSION} --depth 1 \
+    https://github.com/open-quantum-safe/liboqs.git /liboqs \
+    && cd /liboqs && mkdir build && cd build \
+    && cmake -GNinja \
+        -DOQS_USE_OPENSSL=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=Release \
+        .. \
+    && ninja install \
+    && ldconfig
+
+# ---------------------------------------------------------------------------
+# STAGE 2 — Hardened production image
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim-bookworm AS production
+
+# Remove unnecessary packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    # curl is needed for HEALTHCHECK only; remove if healthcheck uses python
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get purge -y --auto-remove \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy liboqs from builder
+COPY --from=builder /usr/local/include /usr/local/include
+COPY --from=builder /usr/local/lib     /usr/local/lib
+RUN ldconfig
+
+# Create non-root user with specific UID
+RUN groupadd -r appgroup && useradd -r -g appgroup -u 8888 -s /usr/sbin/nologin appuser
+
+# Create required directories with strict permissions
+RUN mkdir -p /app/data /tmp/qshield \
+    && chown -R appuser:appgroup /app /tmp/qshield \
+    && chmod 755 /app \
+    && chmod 1777 /tmp/qshield
+
+WORKDIR /app
+
+# Install Python dependencies (cached layer)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip cache purge
+
+# Copy application code
+COPY main.py security_engine.py auth.py database.py models.py audit_store.py \
+     constants.py dashboard.html ./
+
+COPY observability/ ./observability/
+COPY landing/ ./landing/
+COPY providers/ ./providers/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
+COPY scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
+
+# Set ownership
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+# Environment variables with security defaults
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UVICORN_WORKERS=2 \
+    UVICORN_TIMEOUT_KEEP_ALIVE=30 \
+    # Disable Python development mode
+    PYTHONDEVMODE=0 \
+    # Disable bytecode generation
+    PYTHONOPTIMIZE=1 \
+    # Set strict umask
+    UMASK=027
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl --fail --silent --max-time 3 http://localhost:8000/health || exit 1
+
+# Read-only filesystem is configured via docker-compose or Kubernetes
+# The application writes to /tmp/qshield only (tmpfs)
+
+ENTRYPOINT ["./scripts/docker-entrypoint.sh"]

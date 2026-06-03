@@ -170,6 +170,16 @@ A complete proof of usage package is available in the [`evidence/`](evidence/) d
 | Helm chart | ✅ Available | Linted, configurable |
 | Observability | ✅ Working | Prometheus + OpenTelemetry + JSON logs |
 
+## Enterprise Security & Compliance Posture
+
+| Aspect | Status | Documentation |
+|--------|--------|---------------|
+| Performance benchmarks | ✅ Automated | [docs/PERFORMANCE_BENCHMARK_REPORT.md](docs/PERFORMANCE_BENCHMARK_REPORT.md) |
+| Performance regression detection | ✅ Available | [docs/PERFORMANCE_REGRESSION_GUIDE.md](docs/PERFORMANCE_REGRESSION_GUIDE.md) |
+| Container hardening | ✅ Hardened Dockerfile available | [docs/CONTAINER_HARDENING.md](docs/CONTAINER_HARDENING.md) |
+| FIPS readiness | ⚠️ FIPS-aware (not certified) | [docs/FIPS_READINESS.md](docs/FIPS_READINESS.md) |
+| Side-channel readiness | ⚠️ Side-channel-aware (not verified) | [docs/SIDE_CHANNEL_READINESS.md](docs/SIDE_CHANNEL_READINESS.md) |
+
 ## Current Maturity
 
 | Aspect | Status |

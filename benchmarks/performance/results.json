@@ -1,0 +1,195 @@
+{
+  "metadata": {
+    "tool": "quantum-shield-core/run_performance_benchmarks.py",
+    "timestamp": "2026-06-03T20:58:08.744539+00:00",
+    "host": "Darwin arm64",
+    "python_version": "3.12.8",
+    "algorithm": "ML-KEM-768 (Kyber768) + AES-256-GCM",
+    "iterations": 10,
+    "payload_sizes": {
+      "1 KB": 1024,
+      "64 KB": 65536,
+      "1 MB": 1048576,
+      "10 MB": 10485760
+    },
+    "total_duration_seconds": 0.13,
+    "memory_rss_mb_before": 68.59,
+    "memory_rss_mb_after": 128.33,
+    "memory_rss_mb_delta": 59.73
+  },
+  "results": {
+    "key_generation": {
+      "iterations": 10,
+      "errors": 0,
+      "mean_ms": 0.015,
+      "median_ms": 0.013,
+      "p50_ms": 0.013,
+      "p95_ms": 0.021,
+      "p99_ms": 0.024,
+      "min_ms": 0.013,
+      "max_ms": 0.025,
+      "stdev_ms": 0.004,
+      "ops_per_sec": 66870.8
+    },
+    "seal": {
+      "1 KB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 0.205,
+        "median_ms": 0.046,
+        "p50_ms": 0.046,
+        "p95_ms": 0.92,
+        "p99_ms": 1.465,
+        "min_ms": 0.032,
+        "max_ms": 1.601,
+        "stdev_ms": 0.491,
+        "ops_per_sec": 4880.4
+      },
+      "64 KB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 0.053,
+        "median_ms": 0.051,
+        "p50_ms": 0.051,
+        "p95_ms": 0.071,
+        "p99_ms": 0.075,
+        "min_ms": 0.043,
+        "max_ms": 0.076,
+        "stdev_ms": 0.01,
+        "ops_per_sec": 18805.8
+      },
+      "1 MB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 0.366,
+        "median_ms": 0.25,
+        "p50_ms": 0.25,
+        "p95_ms": 0.743,
+        "p99_ms": 0.829,
+        "min_ms": 0.232,
+        "max_ms": 0.85,
+        "stdev_ms": 0.209,
+        "ops_per_sec": 2728.7
+      },
+      "10 MB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 3.864,
+        "median_ms": 3.326,
+        "p50_ms": 3.326,
+        "p95_ms": 6.618,
+        "p99_ms": 8.172,
+        "min_ms": 2.938,
+        "max_ms": 8.56,
+        "stdev_ms": 1.694,
+        "ops_per_sec": 258.8
+      }
+    },
+    "unseal": {
+      "1 KB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 0.03,
+        "median_ms": 0.027,
+        "p50_ms": 0.027,
+        "p95_ms": 0.043,
+        "p99_ms": 0.048,
+        "min_ms": 0.026,
+        "max_ms": 0.049,
+        "stdev_ms": 0.007,
+        "ops_per_sec": 32944.4
+      },
+      "64 KB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 0.051,
+        "median_ms": 0.046,
+        "p50_ms": 0.046,
+        "p95_ms": 0.073,
+        "p99_ms": 0.075,
+        "min_ms": 0.04,
+        "max_ms": 0.076,
+        "stdev_ms": 0.013,
+        "ops_per_sec": 19784.0
+      },
+      "1 MB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 0.382,
+        "median_ms": 0.383,
+        "p50_ms": 0.383,
+        "p95_ms": 0.51,
+        "p99_ms": 0.538,
+        "min_ms": 0.234,
+        "max_ms": 0.545,
+        "stdev_ms": 0.091,
+        "ops_per_sec": 2619.5
+      },
+      "10 MB": {
+        "iterations": 10,
+        "errors": 0,
+        "mean_ms": 3.212,
+        "median_ms": 3.002,
+        "p50_ms": 3.002,
+        "p95_ms": 3.776,
+        "p99_ms": 3.851,
+        "min_ms": 2.892,
+        "max_ms": 3.87,
+        "stdev_ms": 0.366,
+        "ops_per_sec": 311.4
+      }
+    },
+    "audit_write": {
+      "iterations": 10,
+      "errors": 0,
+      "mean_ms": 0.055,
+      "median_ms": 0.01,
+      "p50_ms": 0.01,
+      "p95_ms": 0.253,
+      "p99_ms": 0.404,
+      "min_ms": 0.009,
+      "max_ms": 0.441,
+      "stdev_ms": 0.136,
+      "ops_per_sec": 18330.4
+    },
+    "audit_verify": {
+      "iterations": 10,
+      "errors": 0,
+      "mean_ms": 0.004,
+      "median_ms": 0.003,
+      "p50_ms": 0.003,
+      "p95_ms": 0.009,
+      "p99_ms": 0.011,
+      "min_ms": 0.003,
+      "max_ms": 0.011,
+      "stdev_ms": 0.003,
+      "ops_per_sec": 244905.9
+    },
+    "sha256_hash": {
+      "iterations": 10,
+      "errors": 0,
+      "mean_ms": 0.001,
+      "median_ms": 0.001,
+      "p50_ms": 0.001,
+      "p95_ms": 0.002,
+      "p99_ms": 0.002,
+      "min_ms": 0.001,
+      "max_ms": 0.002,
+      "stdev_ms": 0.001,
+      "ops_per_sec": 1004420.0
+    },
+    "hmac_sha256_sign": {
+      "iterations": 10,
+      "errors": 0,
+      "mean_ms": 0.002,
+      "median_ms": 0.002,
+      "p50_ms": 0.002,
+      "p95_ms": 0.003,
+      "p99_ms": 0.003,
+      "min_ms": 0.002,
+      "max_ms": 0.003,
+      "stdev_ms": 0.0,
+      "ops_per_sec": 481023.6
+    }
+  }
+}
