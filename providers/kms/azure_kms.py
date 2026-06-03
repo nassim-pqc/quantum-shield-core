@@ -105,8 +105,12 @@ class AzureKeyVaultConfig:
         errors: list[str] = []
         if not self.vault_url:
             errors.append("AZURE_KEY_VAULT_URL is required (e.g. https://myvault.vault.azure.net/)")
-        elif not re.match(r"^https://[a-zA-Z0-9][a-zA-Z0-9.-]+\.vault\.azure\.net/?$", self.vault_url):
-            errors.append(f"AZURE_KEY_VAULT_URL '{self.vault_url}' is not a valid Azure Key Vault URL")
+        elif not re.match(
+            r"^https://[a-zA-Z0-9][a-zA-Z0-9.-]+\.vault\.azure\.net/?$", self.vault_url
+        ):
+            errors.append(
+                f"AZURE_KEY_VAULT_URL '{self.vault_url}' is not a valid Azure Key Vault URL"
+            )
         if not self.key_name:
             errors.append("AZURE_KEY_NAME is required")
         if not self.secret_name:
@@ -206,7 +210,11 @@ class AzureKeyVaultClient:
         if isinstance(exc, ServiceRequestError):
             return KeyWrapperTransientError(f"Azure connection error (retriable): {msg}")
         if isinstance(exc, HttpResponseError):
-            status_code: int = exc.status_code if hasattr(exc, "status_code") and exc.status_code is not None else 0
+            status_code: int = (
+                exc.status_code
+                if hasattr(exc, "status_code") and exc.status_code is not None
+                else 0
+            )
             if status_code == 403:
                 return KeyWrapperAuthError(f"Azure access denied (403): {msg}")
             if status_code == 404:

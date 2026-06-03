@@ -34,8 +34,7 @@ _project_root = Path(__file__).resolve().parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from sdk import QuantumShieldClient, QuantumShieldError
-
+from sdk import QuantumShieldClient, QuantumShieldError  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -100,7 +99,7 @@ class DocumentVaultDemo:
 
     def step_encrypt_document(self, doc_id: str, content: bytes) -> None:
         """Step 3: Encrypt a document."""
-        print(f"\n{ '=' * 60}")
+        print(f"\n{'=' * 60}")
         print(f"STEP 3: Encrypt Document '{doc_id}'")
         print("=" * 60)
 
@@ -124,8 +123,8 @@ class DocumentVaultDemo:
 
     def step_audit_log(self, action: str, target: str, user: str) -> None:
         """Step 4: Write an audit log entry."""
-        print(f"\n{ '=' * 60}")
-        print(f"STEP 4: Write Audit Log Entry")
+        print(f"\n{'=' * 60}")
+        print("STEP 4: Write Audit Log Entry")
         print("=" * 60)
 
         result = self.operator.write_audit_log(
@@ -142,7 +141,7 @@ class DocumentVaultDemo:
 
     def step_decrypt_document(self, doc_id: str) -> bytes:
         """Step 5: Decrypt a document."""
-        print(f"\n{ '=' * 60}")
+        print(f"\n{'=' * 60}")
         print(f"STEP 5: Decrypt Document '{doc_id}'")
         print("=" * 60)
 
@@ -162,7 +161,7 @@ class DocumentVaultDemo:
 
     def step_verify_audit_trail(self) -> None:
         """Step 6: Verify audit trail integrity."""
-        print(f"\n{ '=' * 60}")
+        print(f"\n{'=' * 60}")
         print("STEP 6: Verify Audit Trail Integrity")
         print("=" * 60)
 
@@ -171,10 +170,12 @@ class DocumentVaultDemo:
 
         for i, log in enumerate(logs, 1):
             integrity_icon = "✓" if log["integrity"] == "OK" else "✗"
-            print(f"  [{integrity_icon}] Entry {i}/{total}: "
-                  f"action={log['action']}, "
-                  f"target={log['target']}, "
-                  f"integrity={log['integrity']}")
+            print(
+                f"  [{integrity_icon}] Entry {i}/{total}: "
+                f"action={log['action']}, "
+                f"target={log['target']}, "
+                f"integrity={log['integrity']}"
+            )
 
         all_valid = all(log["integrity"] == "OK" for log in logs)
         if all_valid:
@@ -184,7 +185,7 @@ class DocumentVaultDemo:
 
     def step_audit_stats(self) -> None:
         """Step 7: Get audit trail statistics."""
-        print(f"\n{ '=' * 60}")
+        print(f"\n{'=' * 60}")
         print("STEP 7: Audit Trail Statistics")
         print("=" * 60)
 

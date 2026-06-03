@@ -22,7 +22,6 @@ import respx
 from providers.kms.azure_kms import AzureKeyVaultConfig, AzureKeyVaultProvider
 from providers.kms.base import KeyWrapperAuthError, KeyWrapperError
 
-
 # ===================================================================
 # Mock data
 # ===================================================================
@@ -79,16 +78,12 @@ class TestAzureConfig:
     def test_invalid_url_raises(self):
         """Invalid vault URL should raise ValueError."""
         with pytest.raises(ValueError, match="AZURE_KEY_VAULT_URL"):
-            AzureKeyVaultProvider(
-                vault_url="http://insecure.vault.azure.net", max_retries=0
-            )
+            AzureKeyVaultProvider(vault_url="http://insecure.vault.azure.net", max_retries=0)
 
     def test_non_azure_url_format_does_not_raise(self):
         """A valid-looking https URL passes basic validation (vault.azure.net pattern)."""
         with pytest.raises(ValueError, match="AZURE_KEY_VAULT_URL"):
-            AzureKeyVaultProvider(
-                vault_url="https://not-azure.example.com", max_retries=0
-            )
+            AzureKeyVaultProvider(vault_url="https://not-azure.example.com", max_retries=0)
 
     def test_valid_url_works(self, azure_env: None):
         """A valid Azure Key Vault URL should not raise."""
@@ -167,9 +162,7 @@ class TestAzureWrap:
             with pytest.raises(KeyWrapperError):
                 azure_provider.unwrap_key(wrapped)
 
-    def test_wrap_auth_error(
-        self, azure_provider: AzureKeyVaultProvider, dek_bytes: bytes
-    ):
+    def test_wrap_auth_error(self, azure_provider: AzureKeyVaultProvider, dek_bytes: bytes):
         """Authentication failure should raise KeyWrapperAuthError."""
         with patch.object(azure_provider, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -228,9 +221,7 @@ class TestAzureAuditKey:
         finally:
             del os.environ["AUDIT_KEY_v1"]
 
-    def test_get_audit_key_missing_returns_none(
-        self, azure_provider: AzureKeyVaultProvider
-    ):
+    def test_get_audit_key_missing_returns_none(self, azure_provider: AzureKeyVaultProvider):
         """get_audit_key should return None for unknown version."""
         key = azure_provider.get_audit_key("v99")
         assert key is None
@@ -255,9 +246,7 @@ class TestAzureAuditKey:
             assert key == b"a" * 32
             mock_client.get_secret.assert_called_once_with("quantum-shield-audit-v1")
 
-    def test_get_audit_key_from_vault_not_found(
-        self, azure_provider: AzureKeyVaultProvider
-    ):
+    def test_get_audit_key_from_vault_not_found(self, azure_provider: AzureKeyVaultProvider):
         """get_audit_key should return None when secret doesn't exist."""
         with patch.object(azure_provider, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -267,9 +256,7 @@ class TestAzureAuditKey:
             key = azure_provider.get_audit_key("v99")
             assert key is None
 
-    def test_get_audit_key_too_short(
-        self, azure_provider: AzureKeyVaultProvider
-    ):
+    def test_get_audit_key_too_short(self, azure_provider: AzureKeyVaultProvider):
         """get_audit_key should return None for keys shorter than 32 bytes."""
         with patch.object(azure_provider, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -279,9 +266,7 @@ class TestAzureAuditKey:
             key = azure_provider.get_audit_key("v1")
             assert key is None
 
-    def test_get_audit_key_from_vault_fallback(
-        self, azure_env: None
-    ):
+    def test_get_audit_key_from_vault_fallback(self, azure_env: None):
         """get_audit_key should fall back to env vars when vault is unreachable."""
         os.environ["AUDIT_KEY_v1"] = "b" * 32
         try:
@@ -295,9 +280,7 @@ class TestAzureAuditKey:
         finally:
             del os.environ["AUDIT_KEY_v1"]
 
-    def test_get_audit_key_vault_error_fallback(
-        self, azure_env: None
-    ):
+    def test_get_audit_key_vault_error_fallback(self, azure_env: None):
         """get_audit_key should fall back to env when vault raises an error."""
         os.environ["AUDIT_KEY_v1"] = "c" * 32
         try:

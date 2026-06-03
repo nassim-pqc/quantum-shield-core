@@ -11,7 +11,10 @@ Usage:
     client = QuantumShieldClient(base_url="http://localhost:8000", api_key="<your-key>")
 """
 
-from sdk import QuantumShieldClient, QuantumShieldError  # noqa: F401
-from sdk import __version__  # noqa: F401
+from sdk import (  # noqa: F401
+    QuantumShieldClient,
+    QuantumShieldError,
+    __version__,  # noqa: F401
+)
 
 __all__ = ["QuantumShieldClient", "QuantumShieldError"]
