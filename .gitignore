@@ -8,6 +8,18 @@
 secrets/
 credentials/
 
+# --- Private sales / data room material ---
+sales-package/
+investor-kit/
+evidence-pack/
+DOSSIER_VENTE.md
+FINAL_*.md
+PHASE1_AUDIT_FINDINGS.md
+private-data-room/
+*.mov
+*.mp4
+screenshots/
+
 # --- Python ---
 .venv/
 venv/
