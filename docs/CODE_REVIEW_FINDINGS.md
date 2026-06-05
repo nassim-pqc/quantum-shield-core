@@ -27,6 +27,20 @@
 | 2 | `providers/kms/aws_kms.py` | Ruff format inconsistency | Reformatted |
 | 3 | `tests/test_kms_providers.py` | Ruff format + import sort inconsistency | Reformatted |
 
+### main.py KMS bootstrap cleanup
+
+| # | Issue | Correction | Risk Avoided |
+|---|-------|------------|-------------|
+| K1 | `_validate_license_key()` checked for `QSC_LICENSE_KEY` starting with `QSC-ENT-` | Removed entirely — license validation is not part of the open-source core | CTO sees contradiction between docs and code; false "enterprise gating" impression |
+| K2 | `ENTERPRISE_LICENSED` constant gated AWS/Vault/Azure KMS access | Removed — all KMS providers are now accessible based on `KMS_PROVIDER` env var only | No artificial KMS blocking; honest open-source model |
+| K3 | `_ent_license.require_enterprise_license()` not defined (NameError risk) | Removed — dead code path | Runtime `NameError` on any cloud KMS selection without license |
+| K4 | Imports from `enterprise.kms.aws_kms`, `enterprise.kms.vault_kms`, `enterprise.kms.azure_kms` (module doesn't exist) | Replaced with `from providers.kms.*` — the real public modules | ImportError for anyone trying to use cloud KMS |
+| K5 | Log messages `enterprise_license_active` / `enterprise_license_inactive` logging license key prefix | Removed — replaced with technical `kms_provider_selected` log | No accidental secret exposure; no misleading "community edition" messaging |
+| K6 | Lifespan log included `"enterprise": ENTERPRISE_LICENSED` | Replaced with `"kms_provider": <provider>` | Honest startup signal; no false enterprise claim |
+| K7 | OpenAPI description: `"Enterprise post-quantum cryptographic enclave"` | Changed to `"Post-quantum cryptographic microservice."` | Avoids overclaim; matches actual state of the project |
+| K8 | Error message `"Community edition (in-memory audit, no AWS/Vault KMS)"` | Removed — implied feature gating | Clear signal that all providers are available in open-source |
+| K9 | Block comment `# Enterprise license validation (stub for open-source)` | Removed — no stub, no license gating | Clean, honest code |
+
 ### Issues Noted but NOT Modified (safe approach — cosmetic only)
 
 | # | File | Issue | Recommendation |
