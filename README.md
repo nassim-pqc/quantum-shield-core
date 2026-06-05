@@ -33,7 +33,7 @@ Enterprise post-quantum cryptographic microservice — **ML-KEM-768** (Kyber768)
 - **Stateless**: No private keys stored server-side
 - **Signed audit trail**: Append-only, HMAC-SHA256 with key rotation
 - **Memory-safe**: Rust core engine (PyO3 bindings), panic-abort on release
-- **Pluggable KMS**: Local env, AWS KSM, HashiCorp Vault, Azure Key Vault (stubs)
+- **Pluggable KMS**: Local env, AWS KMS, HashiCorp Vault, Azure Key Vault (stubs)
 - **Observability**: Prometheus metrics, OpenTelemetry tracing, JSON logs
 - **Rate limiting**: Per-IP rate limiting on all endpoints
 - **2 SDKs**: [Python](sdk/), [Go](sdk-go/)
@@ -212,7 +212,6 @@ A complete proof of usage package is available in the [`evidence/`](evidence/) d
 ## Roadmap
 
 - Independent cryptographic audit
-- CI/CD pipeline automation (GitHub Actions)
 - PyPI package publication for Python SDK
 - KMS provider implementations (AWS, Vault, Azure)
 - Rust native ML-KEM-768 via liboqs-sys

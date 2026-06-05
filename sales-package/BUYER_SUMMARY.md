@@ -102,6 +102,7 @@ Full evidence: [evidence/README.md](../evidence/README.md)
 | API endpoints | ✅ Complete (9 endpoints) |
 | Audit trail | ✅ HMAC-signed, integrity-verified |
 | KMS providers | ✅ AWS, Vault, Azure |
+| AWS KMS real validation | ⚠️ Pending (requires AWS credentials) |
 | Python SDK | ✅ Complete, tested |
 | Go SDK | ✅ Complete, tested |
 | CI/CD | ✅ GitHub Actions |

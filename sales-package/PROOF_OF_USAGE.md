@@ -107,12 +107,27 @@ python scripts/compare_performance.py \
 
 ## 5. KMS Evidence
 
+### 5.1 Provider Implementations
+
 | Provider | File | Status | Features |
 |----------|------|--------|----------|
 | Local Environment | `security_engine.py` | Working | Env variable keys |
 | AWS KMS | `providers/kms/aws_kms.py` | Implemented | DEK wrapping, retry |
 | HashiCorp Vault | `providers/kms/vault_kms.py` | Implemented | Transit Engine, KV v2 |
 | Azure Key Vault | `providers/kms/azure_kms.py` | Implemented | Key wrapping, Identity auth |
+
+### 5.2 AWS KMS Real Cloud Validation
+
+| Evidence | Status | Detail |
+|----------|--------|--------|
+| Provider audit | ✅ Completed | Full source code audit in `evidence/cloud-validation/aws-kms/` |
+| Setup guide | ✅ Created | `AWS_KMS_MANUAL_SETUP_GUIDE.md` |
+| Validation script | ✅ Created | `scripts/validate_real_aws_kms.py` |
+| Real AWS KMS encrypt/decrypt | ❌ Not executed | Requires AWS CLI + credentials |
+| Real AWS KMS health check | ❌ Not executed | Requires AWS CLI + credentials |
+| CloudTrail evidence | ❌ Not available | Requires AWS CLI + credentials |
+
+**Note**: AWS KMS provider code is implemented and tested with mocks. Real AWS validation was not executed because AWS credentials were not available in the local environment.
 
 ---
 

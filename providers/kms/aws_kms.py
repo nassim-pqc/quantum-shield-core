@@ -2,20 +2,36 @@
 aws_kms.py — AWS KMS provider with DEK Key Wrapping + audit key retrieval.
 
 Implements:
-  - KeyWrapper: wrap_key() / unwrap_key() via KMS Encrypt/Decrypt (RSAES_OAEP_SHA_256)
+  - KeyWrapper: wrap_key() / unwrap_key() via KMS Encrypt/Decrypt
   - SecretProvider: get_audit_key() via KMS Decrypt of encrypted env blobs
+
+Supports both symmetric and asymmetric (RSA) KMS keys.
+
+Symmetric keys (default):
+  - Encryption algorithm: SYMMETRIC_DEFAULT
+  - No EncryptionAlgorithm parameter sent to boto3 (cleanest SDK compat)
+
+Asymmetric RSA keys:
+  - Encryption algorithm: RSAES_OAEP_SHA_256
+  - EncryptionAlgorithm parameter sent to boto3
+
+Algorithm selection:
+  - Environment variable AWS_KMS_ENCRYPTION_ALGORITHM
+  - Or pass encryption_algorithm to AWSKMSProvider constructor
+  - Default: SYMMETRIC_DEFAULT
 
 Uses tenacity for async retry with exponential backoff on transient errors.
 
 Environment Variables:
-    AWS_KMS_KEY_ID           CMK ARN or alias (e.g. alias/quantum-shield-dek)
-    AWS_REGION               AWS region (e.g. eu-west-1)
-    AWS_ACCESS_KEY_ID        Explicit access key (optional — uses IAM role if absent)
-    AWS_SECRET_ACCESS_KEY    Explicit secret key (optional)
-    KMS_MAX_RETRIES          Max retry attempts (default: 3)
-    KMS_RETRY_MIN            Min retry delay seconds (default: 1.0)
-    KMS_RETRY_MAX            Max retry delay seconds (default: 10.0)
-    AUDIT_KEY_ENCRYPTED_V1   Base64-encoded encrypted audit key blob (optional)
+    AWS_KMS_KEY_ID               CMK ARN or alias (e.g. alias/quantum-shield-dek)
+    AWS_REGION                   AWS region (e.g. eu-west-1)
+    AWS_KMS_ENCRYPTION_ALGORITHM Encryption algorithm: SYMMETMIC_DEFAULT or RSAES_OAEP_SHA_256
+    AWS_ACCESS_KEY_ID            Explicit access key (optional — uses IAM role if absent)
+    AWS_SECRET_ACCESS_KEY        Explicit secret key (optional)
+    KMS_MAX_RETRIES              Max retry attempts (default: 3)
+    KMS_RETRY_MIN                Min retry delay seconds (default: 1.0)
+    KMS_RETRY_MAX                Max retry delay seconds (default: 10.0)
+    AUDIT_KEY_ENCRYPTED_V1       Base64-encoded encrypted audit key blob (optional)
 """
 
 from __future__ import annotations
@@ -55,6 +71,14 @@ _DEFAULT_RETRY_MIN: float = 1.0
 _DEFAULT_RETRY_MAX: float = 10.0
 _CACHE_TTL: float = 300.0  # 5 minutes
 
+# Supported encryption algorithms
+ALGO_SYMMETRIC_DEFAULT: str = "SYMMETRIC_DEFAULT"
+ALGO_RSAES_OAEP_SHA_256: str = "RSAES_OAEP_SHA_256"
+_SUPPORTED_ALGORITHMS: tuple[str, ...] = (ALGO_SYMMETRIC_DEFAULT, ALGO_RSAES_OAEP_SHA_256)
+
+# Algorithms that require the EncryptionAlgorithm parameter in boto3 calls
+_ALGORITHMS_REQUIRING_PARAM: tuple[str, ...] = (ALGO_RSAES_OAEP_SHA_256,)
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -65,6 +89,7 @@ class AWSKMSConfig:
 
     key_id: str = ""
     region: str = _DEFAULT_REGION
+    encryption_algorithm: str = ALGO_SYMMETRIC_DEFAULT
     max_retries: int = _DEFAULT_MAX_RETRIES
     retry_min: float = _DEFAULT_RETRY_MIN
     retry_max: float = _DEFAULT_RETRY_MAX
@@ -74,6 +99,9 @@ class AWSKMSConfig:
     def __post_init__(self) -> None:
         self.key_id = self.key_id or os.environ.get("AWS_KMS_KEY_ID", "")
         self.region = self.region or os.environ.get("AWS_REGION", _DEFAULT_REGION)
+        self.encryption_algorithm = self.encryption_algorithm or os.environ.get(
+            "AWS_KMS_ENCRYPTION_ALGORITHM", ALGO_SYMMETRIC_DEFAULT
+        )
         if os.environ.get("KMS_MAX_RETRIES"):
             self.max_retries = int(os.environ["KMS_MAX_RETRIES"])
         if os.environ.get("KMS_RETRY_MIN"):
@@ -90,6 +118,11 @@ class AWSKMSConfig:
             errors.append("AWS_KMS_KEY_ID is required (ARN or alias)")
         if not self.region:
             errors.append("AWS_REGION is required (e.g. eu-west-1)")
+        if self.encryption_algorithm not in _SUPPORTED_ALGORITHMS:
+            errors.append(
+                f"AWS_KMS_ENCRYPTION_ALGORITHM must be one of {_SUPPORTED_ALGORITHMS}; "
+                f"got {self.encryption_algorithm!r}"
+            )
         if self.max_retries < 0 or self.max_retries > 10:
             errors.append("KMS_MAX_RETRIES must be between 0 and 10")
         if errors:
@@ -107,9 +140,19 @@ def _is_retryable(exc: BaseException) -> bool:
 # AWS KMS Client
 # ---------------------------------------------------------------------------
 class AWSKMSClient:
-    """Low-level boto3 client with tenacity retry and error classification."""
+    """Low-level boto3 client with tenacity retry and error classification.
 
-    WRAPPING_ALGORITHM = "RSAES_OAEP_SHA_256"
+    The encryption algorithm is determined by the config's encryption_algorithm
+    field:
+
+    - ``SYMMETRIC_DEFAULT``: No ``EncryptionAlgorithm`` parameter is sent to
+      the boto3 KMS ``encrypt`` / ``decrypt`` calls. This is the correct
+      behaviour for symmetric KMS keys (key spec ``SYMMETRIC_DEFAULT``).
+
+    - ``RSAES_OAEP_SHA_256``: The ``EncryptionAlgorithm`` parameter is sent
+      with value ``RSAES_OAEP_SHA_256``. This is the correct behaviour for
+      asymmetric RSA KMS keys (key spec ``RSA_4096``).
+    """
 
     def __init__(self, config: AWSKMSConfig) -> None:
         self._config = config
@@ -165,6 +208,13 @@ class AWSKMSClient:
 
         return KeyWrapperTransientError(f"AWS KMS connection error: {msg}")
 
+    def _encryption_kwargs(self) -> dict[str, Any]:
+        """Build the extra kwargs for encrypt/decrypt based on algorithm."""
+        algo = self._config.encryption_algorithm
+        if algo in _ALGORITHMS_REQUIRING_PARAM:
+            return {"EncryptionAlgorithm": algo}
+        return {}
+
     # -- tenacity-retried operations --
 
     @retry(
@@ -178,11 +228,12 @@ class AWSKMSClient:
         """Wrap a DEK via KMS Encrypt."""
         client = self._get_client()
         try:
-            resp = client.encrypt(
-                KeyId=key_id or self._config.key_id,
-                Plaintext=plaintext,
-                EncryptionAlgorithm=self.WRAPPING_ALGORITHM,
-            )
+            kwargs: dict[str, Any] = {
+                "KeyId": key_id or self._config.key_id,
+                "Plaintext": plaintext,
+            }
+            kwargs.update(self._encryption_kwargs())
+            resp = client.encrypt(**kwargs)
             return resp["CiphertextBlob"]
         except Exception as exc:
             raise self._classify_error(exc) from exc
@@ -198,10 +249,11 @@ class AWSKMSClient:
         """Unwrap a DEK via KMS Decrypt."""
         client = self._get_client()
         try:
-            resp = client.decrypt(
-                CiphertextBlob=ciphertext_blob,
-                EncryptionAlgorithm=self.WRAPPING_ALGORITHM,
-            )
+            kwargs: dict[str, Any] = {
+                "CiphertextBlob": ciphertext_blob,
+            }
+            kwargs.update(self._encryption_kwargs())
+            resp = client.decrypt(**kwargs)
             return resp["Plaintext"]
         except Exception as exc:
             raise self._classify_error(exc) from exc
@@ -230,15 +282,25 @@ class AWSKMSProvider(KMSProvider):
     """
     AWS KMS provider implementing both KeyWrapper and SecretProvider.
 
+    Supports symmetric KMS keys (default, ``SYMMETRIC_DEFAULT`` algorithm)
+    and asymmetric RSA KMS keys (``RSAES_OAEP_SHA_256`` algorithm).
+
     Key Wrapping (DEK):
-        Uses KMS Encrypt/Decrypt with RSAES_OAEP_SHA_256.
+        Uses KMS Encrypt/Decrypt. The encryption algorithm is configurable
+        via ``AWS_KMS_ENCRYPTION_ALGORITHM`` env var or the constructor's
+        ``encryption_algorithm`` parameter.
 
     Audit Key Retrieval:
         Decrypts base64-encoded encrypted blobs stored in env vars
         (AUDIT_KEY_ENCRYPTED_V1, AUDIT_KEY_ENCRYPTED_V2, ...).
 
     Usage:
+        # Symmetric key (default)
         provider = AWSKMSProvider()
+
+        # Asymmetric RSA key
+        provider = AWSKMSProvider(encryption_algorithm="RSAES_OAEP_SHA_256")
+
         wrapped = provider.wrap_key(dek_bytes)
         dek = provider.unwrap_key(wrapped)
         key = provider.get_audit_key("v1")
@@ -248,6 +310,7 @@ class AWSKMSProvider(KMSProvider):
         self,
         key_id: str | None = None,
         region: str | None = None,
+        encryption_algorithm: str | None = None,
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
         max_retries: int | None = None,
@@ -259,6 +322,8 @@ class AWSKMSProvider(KMSProvider):
             kwargs["key_id"] = key_id
         if region is not None:
             kwargs["region"] = region
+        if encryption_algorithm is not None:
+            kwargs["encryption_algorithm"] = encryption_algorithm
         if access_key_id is not None:
             kwargs["access_key_id"] = access_key_id
         if secret_access_key is not None:
@@ -306,6 +371,7 @@ class AWSKMSProvider(KMSProvider):
             "k": base64.b64encode(ciphertext_blob).decode(),
             "region": self._config.region,
             "key_id": self._config.key_id,
+            "algo": self._config.encryption_algorithm,
         }
         return base64.b64encode(json.dumps(payload, sort_keys=True).encode()).decode()
 
@@ -409,8 +475,10 @@ class AWSKMSProvider(KMSProvider):
                 "provider": "aws_kms",
                 "key_id": self._config.key_id,
                 "region": self._config.region,
+                "encryption_algorithm": self._config.encryption_algorithm,
                 "key_state": meta.get("KeyState", "unknown"),
                 "key_usage": meta.get("KeyUsage", "unknown"),
+                "key_spec": meta.get("KeySpec", "unknown"),
                 "status": "available",
             }
         except KeyWrapperError as exc:
@@ -422,4 +490,7 @@ class AWSKMSProvider(KMSProvider):
 __all__ = [
     "AWSKMSProvider",
     "AWSKMSConfig",
+    "ALGO_SYMMETRIC_DEFAULT",
+    "ALGO_RSAES_OAEP_SHA_256",
+    "_SUPPORTED_ALGORITHMS",
 ]

@@ -178,7 +178,20 @@ go test ./... -v
 | HashiCorp Vault | `providers/kms/vault_kms.py` | Implemented | Transit Engine, KV v2, retry |
 | Azure Key Vault | `providers/kms/azure_kms.py` | Implemented | Key wrapping, Identity auth |
 
-### 5.2 KMS Interface
+### 5.3 AWS KMS Real Cloud Validation
+
+| Evidence | Status | Detail |
+|----------|--------|--------|
+| Provider audit | ✅ Completed | Full source code audit in `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md` |
+| Setup guide | ✅ Created | Step-by-step guide in `evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md` |
+| Validation script | ✅ Created | `scripts/validate_real_aws_kms.py` — ready for execution |
+| Real AWS KMS encrypt/decrypt | ❌ Not executed | Requires AWS CLI + credentials |
+| Real AWS KMS health check | ❌ Not executed | Requires AWS CLI + credentials |
+| CloudTrail evidence | ❌ Not available | Requires AWS CLI + credentials |
+
+**Status**: AWS KMS provider code is implemented and tested with mocks. Real AWS validation was not executed because AWS credentials were not available in the local environment. Once AWS CLI is configured, run `scripts/validate_real_aws_kms.py` to validate against a real AWS KMS key.
+
+### 5.4 KMS Interface
 
 All providers implement the `KMSProvider` interface:
 - `wrap_key(plaintext_dek) -> str` — DEK wrapping

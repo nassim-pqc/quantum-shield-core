@@ -6,6 +6,10 @@ Uses:
   - respx for Vault HTTP API mocking
 
 All tests are fully isolated — no external infrastructure required.
+
+AWS KMS key types tested:
+  - RSA_4096 asymmetric key (uses RSAES_OAEP_SHA_256 algorithm)
+  - SYMMETRIC_DEFAULT symmetric key (uses no explicit EncryptionAlgorithm)
 """
 
 from __future__ import annotations
@@ -20,12 +24,17 @@ import pytest
 import respx
 from moto import mock_aws
 
-from providers.kms.aws_kms import AWSKMSProvider
+from providers.kms.aws_kms import (
+    _SUPPORTED_ALGORITHMS,
+    ALGO_RSAES_OAEP_SHA_256,
+    ALGO_SYMMETRIC_DEFAULT,
+    AWSKMSProvider,
+)
 from providers.kms.base import KeyWrapperAuthError, KeyWrapperError
 from providers.kms.vault_kms import HashiCorpVaultKMSProvider
 
 # ===================================================================
-# Fixtures
+# Fixtures — AWS credentials
 # ===================================================================
 
 
@@ -39,17 +48,21 @@ def aws_credentials() -> None:
     os.environ["AWS_DEFAULT_REGION"] = "eu-west-1"
 
 
+# ===================================================================
+# Fixtures — RSA asymmetric key (uses RSAES_OAEP_SHA_256)
+# ===================================================================
+
+
 @pytest.fixture
-def aws_kms_client(aws_credentials: None) -> Any:
-    """Create a mock AWS KMS client and return the underlying moto backend."""
+def rsa_kms_client(aws_credentials: None) -> Any:
+    """Create a mock RSA_4096 KMS client."""
     with mock_aws():
         import boto3
 
         client = boto3.Session(region_name="eu-west-1").client("kms", region_name="eu-west-1")
-        # Create a CMK for testing
         key = client.create_key(
             Policy="test",
-            Description="Test key",
+            Description="Test RSA key",
             KeyUsage="ENCRYPT_DECRYPT",
             KeySpec="RSA_4096",
         )
@@ -59,13 +72,63 @@ def aws_kms_client(aws_credentials: None) -> Any:
 
 
 @pytest.fixture
-def aws_provider(aws_kms_client: Any) -> AWSKMSProvider:
-    """Create an AWS KMS provider connected to the mock."""
+def rsa_provider(rsa_kms_client: Any) -> AWSKMSProvider:
+    """Create an AWS KMS provider for an RSA_4096 mock key."""
     return AWSKMSProvider(
         key_id=os.environ["AWS_KMS_KEY_ID"],
         region="eu-west-1",
-        max_retries=0,  # no retries in tests for speed
+        encryption_algorithm=ALGO_RSAES_OAEP_SHA_256,
+        max_retries=0,
     )
+
+
+# ===================================================================
+# Fixtures — Symmetric key (uses SYMMETRIC_DEFAULT)
+# ===================================================================
+
+
+@pytest.fixture
+def symmetric_kms_client(aws_credentials: None) -> Any:
+    """Create a mock SYMMETRIC_DEFAULT KMS client."""
+    with mock_aws():
+        import boto3
+
+        client = boto3.Session(region_name="eu-west-1").client("kms", region_name="eu-west-1")
+        key = client.create_key(
+            Policy="test",
+            Description="Test symmetric key",
+            KeyUsage="ENCRYPT_DECRYPT",
+            KeySpec="SYMMETRIC_DEFAULT",
+        )
+        key_id = key["KeyMetadata"]["KeyId"]
+        os.environ["AWS_KMS_KEY_ID"] = key_id
+        yield client
+
+
+@pytest.fixture
+def symmetric_provider(symmetric_kms_client: Any) -> AWSKMSProvider:
+    """Create an AWS KMS provider for a SYMMETRIC_DEFAULT mock key."""
+    return AWSKMSProvider(
+        key_id=os.environ["AWS_KMS_KEY_ID"],
+        region="eu-west-1",
+        encryption_algorithm=ALGO_SYMMETRIC_DEFAULT,
+        max_retries=0,
+    )
+
+
+@pytest.fixture
+def symmetric_provider_default_algo(symmetric_kms_client: Any) -> AWSKMSProvider:
+    """Create an AWS KMS provider that relies on the default algorithm."""
+    return AWSKMSProvider(
+        key_id=os.environ["AWS_KMS_KEY_ID"],
+        region="eu-west-1",
+        max_retries=0,
+    )
+
+
+# ===================================================================
+# Fixtures — Vault
+# ===================================================================
 
 
 @pytest.fixture
@@ -86,6 +149,11 @@ def vault_provider(vault_env: None) -> HashiCorpVaultKMSProvider:
     )
 
 
+# ===================================================================
+# Fixtures — common
+# ===================================================================
+
+
 @pytest.fixture
 def dek_bytes() -> bytes:
     """A 32-byte DEK (simulating Kyber768 shared secret)."""
@@ -93,36 +161,36 @@ def dek_bytes() -> bytes:
 
 
 # ===================================================================
-# AWS KMS Tests
+# AWS KMS Tests — RSA Asymmetric Key
 # ===================================================================
 
 
-class TestAWSKMSWrap:
-    """Test AWS KMS DEK wrapping/unwrapping."""
+class TestAWSAKRSAKey:
+    """Test AWS KMS with RSA_4096 asymmetric key (RSAES_OAEP_SHA_256)."""
 
-    def test_wrap_roundtrip(self, aws_provider: AWSKMSProvider, dek_bytes: bytes):
+    def test_wrap_roundtrip(self, rsa_provider: AWSKMSProvider, dek_bytes: bytes):
         """wrap_key followed by unwrap_key should return the original DEK."""
-        wrapped = aws_provider.wrap_key(dek_bytes)
+        wrapped = rsa_provider.wrap_key(dek_bytes)
         assert isinstance(wrapped, str)
         assert len(wrapped) > 0
 
-        unwrapped = aws_provider.unwrap_key(wrapped)
+        unwrapped = rsa_provider.unwrap_key(wrapped)
         assert unwrapped == dek_bytes
 
-    def test_wrap_different_each_time(self, aws_provider: AWSKMSProvider, dek_bytes: bytes):
+    def test_wrap_different_each_time(self, rsa_provider: AWSKMSProvider, dek_bytes: bytes):
         """Same DEK should produce different wrapped blobs (random padding)."""
-        w1 = aws_provider.wrap_key(dek_bytes)
-        w2 = aws_provider.wrap_key(dek_bytes)
+        w1 = rsa_provider.wrap_key(dek_bytes)
+        w2 = rsa_provider.wrap_key(dek_bytes)
         assert w1 != w2
 
-    def test_unwrap_invalid_blob_raises(self, aws_provider: AWSKMSProvider):
+    def test_unwrap_invalid_blob_raises(self, rsa_provider: AWSKMSProvider):
         """Invalid blob format should raise KeyWrapperError."""
         with pytest.raises(KeyWrapperError):
-            aws_provider.unwrap_key("not-a-valid-blob")
+            rsa_provider.unwrap_key("not-a-valid-blob")
 
-    def test_unwrap_tampered_blob_raises(self, aws_provider: AWSKMSProvider, dek_bytes: bytes):
+    def test_unwrap_tampered_blob_raises(self, rsa_provider: AWSKMSProvider, dek_bytes: bytes):
         """Tampered blob (corrupted ciphertext) should raise KeyWrapperError."""
-        wrapped = aws_provider.wrap_key(dek_bytes)
+        wrapped = rsa_provider.wrap_key(dek_bytes)
         payload = json.loads(base64.b64decode(wrapped))
         # Flip bits in the ciphertext
         corrupted_ciphertext = bytearray(base64.b64decode(payload["k"]))
@@ -131,7 +199,164 @@ class TestAWSKMSWrap:
         tampered = base64.b64encode(json.dumps(payload, sort_keys=True).encode()).decode()
 
         with pytest.raises(KeyWrapperError):
-            aws_provider.unwrap_key(tampered)
+            rsa_provider.unwrap_key(tampered)
+
+    def test_health_check(self, rsa_provider: AWSKMSProvider):
+        """Health check should return available status with mock."""
+        status = rsa_provider.health_check()
+        assert status["provider"] == "aws_kms"
+        assert status["status"] == "available"
+        assert status["encryption_algorithm"] == ALGO_RSAES_OAEP_SHA_256
+        assert "key_id" in status
+
+
+# ===================================================================
+# AWS KMS Tests — Symmetric Key
+# ===================================================================
+
+
+class TestAWSKMSSymmetricKey:
+    """Test AWS KMS with SYMMETRIC_DEFAULT symmetric key."""
+
+    def test_wrap_roundtrip(self, symmetric_provider: AWSKMSProvider, dek_bytes: bytes):
+        """wrap_key followed by unwrap_key should return the original DEK."""
+        wrapped = symmetric_provider.wrap_key(dek_bytes)
+        assert isinstance(wrapped, str)
+        assert len(wrapped) > 0
+
+        unwrapped = symmetric_provider.unwrap_key(wrapped)
+        assert unwrapped == dek_bytes
+
+    def test_wrap_roundtrip_default_algo(
+        self, symmetric_provider_default_algo: AWSKMSProvider, dek_bytes: bytes
+    ):
+        """Default algorithm (SYMMETRIC_DEFAULT) should work with symmetric key."""
+        wrapped = symmetric_provider_default_algo.wrap_key(dek_bytes)
+        unwrapped = symmetric_provider_default_algo.unwrap_key(wrapped)
+        assert unwrapped == dek_bytes
+
+    def test_wrap_different_each_time(self, symmetric_provider: AWSKMSProvider, dek_bytes: bytes):
+        """Same DEK should produce different wrapped blobs (random padding)."""
+        w1 = symmetric_provider.wrap_key(dek_bytes)
+        w2 = symmetric_provider.wrap_key(dek_bytes)
+        assert w1 != w2
+
+    def test_unwrap_invalid_blob_raises(self, symmetric_provider: AWSKMSProvider):
+        """Invalid blob format should raise KeyWrapperError."""
+        with pytest.raises(KeyWrapperError):
+            symmetric_provider.unwrap_key("not-a-valid-blob")
+
+    def test_unwrap_tampered_blob_raises(
+        self, symmetric_provider: AWSKMSProvider, dek_bytes: bytes
+    ):
+        """Tampered blob (corrupted ciphertext) should raise KeyWrapperError."""
+        wrapped = symmetric_provider.wrap_key(dek_bytes)
+        payload = json.loads(base64.b64decode(wrapped))
+        corrupted_ciphertext = bytearray(base64.b64decode(payload["k"]))
+        corrupted_ciphertext[0] ^= 0xFF
+        payload["k"] = base64.b64encode(bytes(corrupted_ciphertext)).decode()
+        tampered = base64.b64encode(json.dumps(payload, sort_keys=True).encode()).decode()
+
+        with pytest.raises(KeyWrapperError):
+            symmetric_provider.unwrap_key(tampered)
+
+    def test_health_check(self, symmetric_provider: AWSKMSProvider):
+        """Health check should return available status with mock."""
+        status = symmetric_provider.health_check()
+        assert status["provider"] == "aws_kms"
+        assert status["status"] == "available"
+        assert status["encryption_algorithm"] == ALGO_SYMMETRIC_DEFAULT
+        assert "key_id" in status
+
+    def test_wrapped_blob_contains_algorithm(
+        self, symmetric_provider: AWSKMSProvider, dek_bytes: bytes
+    ):
+        """Wrapped blob should contain the algorithm in metadata."""
+        wrapped = symmetric_provider.wrap_key(dek_bytes)
+        payload = json.loads(base64.b64decode(wrapped))
+        assert payload.get("algo") == ALGO_SYMMETRIC_DEFAULT
+
+
+# ===================================================================
+# AWS KMS Tests — Audit Key Retrieval
+# ===================================================================
+
+
+class TestAWSKMSAuditKey:
+    """Test AWS KMS audit key retrieval."""
+
+    @pytest.fixture
+    def aws_kms_client_rsa(self, aws_credentials: None) -> Any:
+        """Create a mock RSA KMS client for audit key tests."""
+        with mock_aws():
+            import boto3
+
+            client = boto3.Session(region_name="eu-west-1").client("kms", region_name="eu-west-1")
+            key = client.create_key(
+                Policy="test",
+                Description="Test RSA key",
+                KeyUsage="ENCRYPT_DECRYPT",
+                KeySpec="RSA_4096",
+            )
+            key_id = key["KeyMetadata"]["KeyId"]
+            os.environ["AWS_KMS_KEY_ID"] = key_id
+            yield client
+
+    @pytest.fixture
+    def rsa_audit_provider(self, aws_kms_client_rsa: Any) -> AWSKMSProvider:
+        """Create an RSA provider for audit key tests."""
+        return AWSKMSProvider(
+            key_id=os.environ["AWS_KMS_KEY_ID"],
+            region="eu-west-1",
+            encryption_algorithm=ALGO_RSAES_OAEP_SHA_256,
+            max_retries=0,
+        )
+
+    def test_get_audit_key_from_env(self, aws_kms_client_rsa: Any):
+        """get_audit_key should return key from plain env var."""
+        os.environ["AUDIT_KEY_v1"] = "a" * 32
+        try:
+            provider = AWSKMSProvider(
+                key_id=os.environ["AWS_KMS_KEY_ID"],
+                region="eu-west-1",
+                encryption_algorithm=ALGO_RSAES_OAEP_SHA_256,
+                max_retries=0,
+            )
+            key = provider.get_audit_key("v1")
+            assert key == b"a" * 32
+        finally:
+            del os.environ["AUDIT_KEY_v1"]
+
+    def test_get_audit_key_missing_returns_none(self, rsa_audit_provider: AWSKMSProvider):
+        """get_audit_key should return None for unknown version."""
+        key = rsa_audit_provider.get_audit_key("v99")
+        assert key is None
+
+    def test_get_audit_key_encrypted(
+        self, aws_kms_client_rsa: Any, rsa_audit_provider: AWSKMSProvider
+    ):
+        """get_audit_key should decrypt an encrypted blob from env."""
+        plaintext = b"x" * 32
+        encrypted = aws_kms_client_rsa.encrypt(
+            KeyId=os.environ["AWS_KMS_KEY_ID"],
+            Plaintext=plaintext,
+            EncryptionAlgorithm="RSAES_OAEP_SHA_256",
+        )["CiphertextBlob"]
+        os.environ["AUDIT_KEY_ENCRYPTED_V2"] = base64.b64encode(encrypted).decode()
+        try:
+            key = rsa_audit_provider.get_audit_key("v2")
+            assert key == plaintext
+        finally:
+            del os.environ["AUDIT_KEY_ENCRYPTED_V2"]
+
+
+# ===================================================================
+# AWS KMS Tests — Configuration
+# ===================================================================
+
+
+class TestAWSKMSConfig:
+    """Test AWS KMS configuration validation."""
 
     def test_missing_key_id_raises(self):
         """Provider without key_id should raise ValueError on init."""
@@ -143,51 +368,39 @@ class TestAWSKMSWrap:
             if old_key:
                 os.environ["AWS_KMS_KEY_ID"] = old_key
 
-    def test_health_check(self, aws_provider: AWSKMSProvider):
-        """Health check should return available status with mock."""
-        status = aws_provider.health_check()
-        assert status["provider"] == "aws_kms"
-        assert status["status"] == "available"
-        assert "key_id" in status
-
-
-class TestAWSKMSAuditKey:
-    """Test AWS KMS audit key retrieval."""
-
-    def test_get_audit_key_from_env(self, aws_kms_client: Any, dek_bytes: bytes):
-        """get_audit_key should return key from plain env var."""
-        os.environ["AUDIT_KEY_v1"] = "a" * 32
+    def test_invalid_algorithm_raises(self):
+        """Invalid encryption algorithm should raise ValueError."""
+        old_key = os.environ.get("AWS_KMS_KEY_ID")
+        if not old_key:
+            os.environ["AWS_KMS_KEY_ID"] = "test-key-id"
         try:
-            provider = AWSKMSProvider(
-                key_id=os.environ["AWS_KMS_KEY_ID"],
-                region="eu-west-1",
-                max_retries=0,
-            )
-            key = provider.get_audit_key("v1")
-            assert key == b"a" * 32
+            with pytest.raises(ValueError, match="AWS_KMS_ENCRYPTION_ALGORITHM must be one of"):
+                AWSKMSProvider(
+                    key_id="test-key-id",
+                    region="eu-west-1",
+                    encryption_algorithm="INVALID_ALGO",
+                    max_retries=0,
+                )
         finally:
-            del os.environ["AUDIT_KEY_v1"]
+            if old_key is None:
+                del os.environ["AWS_KMS_KEY_ID"]
 
-    def test_get_audit_key_missing_returns_none(self, aws_provider: AWSKMSProvider):
-        """get_audit_key should return None for unknown version."""
-        key = aws_provider.get_audit_key("v99")
-        assert key is None
-
-    def test_get_audit_key_encrypted(self, aws_kms_client: Any, aws_provider: AWSKMSProvider):
-        """get_audit_key should decrypt an encrypted blob from env."""
-        # Encrypt a key via the real (mocked) KMS
-        plaintext = b"x" * 32
-        encrypted = aws_kms_client.encrypt(
-            KeyId=os.environ["AWS_KMS_KEY_ID"],
-            Plaintext=plaintext,
-            EncryptionAlgorithm="RSAES_OAEP_SHA_256",
-        )["CiphertextBlob"]
-        os.environ["AUDIT_KEY_ENCRYPTED_V2"] = base64.b64encode(encrypted).decode()
+    def test_default_algorithm_is_symmetric(self):
+        """Default encryption algorithm should be SYMMETRIC_DEFAULT."""
+        old_key = os.environ.get("AWS_KMS_KEY_ID")
+        if not old_key:
+            os.environ["AWS_KMS_KEY_ID"] = "test-key-id"
         try:
-            key = aws_provider.get_audit_key("v2")
-            assert key == plaintext
+            provider = AWSKMSProvider(key_id="test-key-id", region="eu-west-1", max_retries=0)
+            assert provider._config.encryption_algorithm == ALGO_SYMMETRIC_DEFAULT
         finally:
-            del os.environ["AUDIT_KEY_ENCRYPTED_V2"]
+            if old_key is None:
+                del os.environ["AWS_KMS_KEY_ID"]
+
+    def test_supported_algorithms_exported(self):
+        """_SUPPORTED_ALGORITHMS should contain both algorithms."""
+        assert ALGO_SYMMETRIC_DEFAULT in _SUPPORTED_ALGORITHMS
+        assert ALGO_RSAES_OAEP_SHA_256 in _SUPPORTED_ALGORITHMS
 
 
 # ===================================================================
