@@ -45,31 +45,8 @@ from observability import (
 )
 from security_engine import LocalEnvKMS, SecurityEngine
 
-
-# Enterprise license validation (stub for open-source)
-def _validate_license_key() -> bool:
-    """Check if a valid enterprise license key is configured."""
-    license_key = os.environ.get("QSC_LICENSE_KEY", "")
-    return license_key.startswith("QSC-ENT-") and len(license_key) >= 32
-
-
 load_dotenv()
 configure_logging()
-
-# ---------------------------------------------------------------------------
-# Enterprise license check
-# ---------------------------------------------------------------------------
-ENTERPRISE_LICENSED: bool = _validate_license_key()
-
-if ENTERPRISE_LICENSED:
-    logger.info(
-        "enterprise_license_active", extra={"key_prefix": os.environ.get("QSC_LICENSE_KEY", "")[:8]}
-    )
-else:
-    logger.info(
-        "enterprise_license_inactive",
-        extra={"detail": "Community edition (in-memory audit, no AWS/Vault KMS)"},
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -92,29 +69,23 @@ def _bootstrap_kms_keys() -> dict[str, bytes]:
 
 def _create_kms_provider(keys: dict[str, bytes]):
     provider = os.environ.get("KMS_PROVIDER", "local").lower()
-    if provider in ("aws", "vault", "azure"):
-        if not ENTERPRISE_LICENSED:
-            try:
-                _ent_license.require_enterprise_license()  # raises HTTPException 402  # noqa: F821
-            except NameError:
-                from fastapi import HTTPException as _HTTPException
+    if provider == "aws":
+        from providers.kms.aws_kms import AWSKMSProvider
 
-                raise _HTTPException(
-                    status_code=402,
-                    detail="Enterprise license required for this KMS provider.",
-                ) from None
-        if provider == "aws":
-            from enterprise.kms.aws_kms import AWSKMSProvider
+        return AWSKMSProvider()
+    if provider == "vault":
+        from providers.kms.vault_kms import HashiCorpVaultKMSProvider
 
-            return AWSKMSProvider()
-        if provider == "vault":
-            from enterprise.kms.vault_kms import HashiCorpVaultKMSProvider
-
-            return HashiCorpVaultKMSProvider()
-        from enterprise.kms.azure_kms import AzureKeyVaultProvider
+        return HashiCorpVaultKMSProvider()
+    if provider == "azure":
+        from providers.kms.azure_kms import AzureKeyVaultProvider
 
         return AzureKeyVaultProvider()
-    return LocalEnvKMS(keys)
+    if provider == "local":
+        return LocalEnvKMS(keys)
+    raise ValueError(
+        f"Unsupported KMS_PROVIDER '{provider}'. Expected local, aws, vault, or azure."
+    )
 
 
 _keys_dict = _bootstrap_kms_keys()
@@ -122,6 +93,10 @@ _active_version = os.environ.get("ACTIVE_AUDIT_KEY_VERSION", "v1")
 crypto_engine = SecurityEngine(
     _create_kms_provider(_keys_dict),
     active_key_version=_active_version,
+)
+logger.info(
+    "kms_provider_selected",
+    extra={"provider": os.environ.get("KMS_PROVIDER", "local").lower()},
 )
 
 
@@ -143,7 +118,11 @@ async def lifespan(app: FastAPI):
         await _seed_api_key(db, "API_KEY_AUDITOR", "auditor", "System Auditor")
         await db.commit()
     logger.info(
-        "quantum_shield_started", extra={"version": API_VERSION, "enterprise": ENTERPRISE_LICENSED}
+        "quantum_shield_started",
+        extra={
+            "version": API_VERSION,
+            "kms_provider": os.environ.get("KMS_PROVIDER", "local").lower(),
+        },
     )
     yield
     logger.info("quantum_shield_shutdown", extra={"version": API_VERSION})
@@ -174,7 +153,7 @@ OPENAPI_TAGS = [
 app = FastAPI(
     title="Quantum Shield Core API",
     description=(
-        "Enterprise post-quantum cryptographic enclave.\n\n"
+        "Post-quantum cryptographic microservice.\n\n"
         "- **Algorithm**: ML-KEM-768 (Kyber768) + AES-256-GCM\n"
         "- **Audit**: HMAC-SHA256 signed logs with key rotation\n"
         "- **Auth**: API key (SHA-256 hashed) with RBAC\n\n"
