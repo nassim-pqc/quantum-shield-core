@@ -21,30 +21,31 @@ This project is **pre-production** and **pre-commercial**. The core encryption e
 ## Features
 
 - ML-KEM-768 key encapsulation (via liboqs-python)
-- AES-256-GCM symmetric encryption (via pyca/cryptography)
+- AES-256-GCM symmetric encryption (via pyca/cryptography), AES key derived via HKDF-SHA256
 - Stateless architecture — no private keys stored server-side
-- Signed audit trail — append-only, HMAC-SHA256 with key rotation
-- Rust core engine — memory-safe HMAC-SHA256, constant-time operations (PyO3 bindings, panic=abort in release)
+- Signed audit trail — append-only, HMAC-SHA256 with key rotation (in-memory store currently)
+- Rust core engine — partial acceleration path for HMAC/audit (PyO3 bindings, `panic = "abort"` in release). AES-GCM is performed by the canonical Python path
 - Pluggable KMS providers — local env, AWS KMS, HashiCorp Vault, Azure Key Vault
 - Observability — Prometheus metrics, OpenTelemetry tracing, JSON structured logging
-- Rate limiting — per-IP rate limiting on all endpoints
+- Rate limiting — per-IP rate limiting on authenticated API endpoints (`/health` and `/metrics` are unlimited)
 - SDKs — Python and Go
 
 ## Quick Start
 
 ```bash
-# Docker
-docker run -p 8000:8000 \
-  -e AUDIT_KEY="your-32-byte-key-here-xxxxxxxxxxxxxxxx" \
-  -e API_KEY_OPERATOR="my-operator-key" \
-  ghcr.io/quantum-shield/core:latest
+# Clone + build locally (no published image yet)
+git clone https://github.com/nassim-pqc/quantum-shield-core.git
+cd quantum-shield-core
+cp .env.example .env   # then set AUDIT_KEY_v1, API_KEY_OPERATOR, API_KEY_AUDITOR
+
+docker compose up --build
 
 # Verify
 curl http://localhost:8000/health
 
-# Encrypt
+# Generate a key pair
 curl -s -X POST http://localhost:8000/api/v1/keys/generate \
-  -H "X-API-Key: my-operator-key"
+  -H "X-API-Key: <your-operator-key>"
 ```
 
 Full deploy guide: [docs/live-demo-deployment.md](docs/live-demo-deployment.md)
@@ -53,14 +54,20 @@ Full deploy guide: [docs/live-demo-deployment.md](docs/live-demo-deployment.md)
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| API | FastAPI (Python 3.12) | HTTP endpoints, validation, routing |
+| API | FastAPI (Python 3.11+) | HTTP endpoints, validation, routing |
 | Auth | SQLAlchemy + SHA-256 | API key hashing, RBAC |
 | KEM | liboqs-python | ML-KEM-768 key encapsulation |
-| AEAD | pyca/cryptography | AES-256-GCM with AAD |
-| Rust | PyO3 | HMAC-SHA256, AES-GCM (constant-time) |
-| Audit | PostgreSQL | Append-only signed log storage |
+| AEAD | pyca/cryptography | AES-256-GCM with AAD, HKDF-SHA256 key derivation |
+| Rust | PyO3 | Partial acceleration path for HMAC/audit (when built) |
+| Audit | In-memory signed store (current) | HMAC-SHA256 append-only log, persistence WIP |
 | Metrics | Prometheus | Operations count, latency |
 | Tracing | OpenTelemetry | W3C trace context, OTLP export |
+
+> **Audit storage note.** The current audit trail is an in-memory signed store
+> suitable for local and pre-production evaluation. SQLAlchemy and PostgreSQL
+> models exist (`models.py`) for the persistent-audit work, but the persistent
+> backend is not yet wired to the audit store. Docker image is based on
+> Python 3.11; the test matrix covers 3.11 and 3.12.
 
 ## Performance Benchmarks
 

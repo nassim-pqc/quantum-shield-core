@@ -20,7 +20,7 @@ docker run -d --name qshield \
   -e API_KEY_AUDITOR="demo-auditor-key-insecure-for-demo-only" \
   -e ENABLE_DOCS=true \
   -e LOG_LEVEL=INFO \
-  ghcr.io/quantum-shield/core:latest
+  quantum-shield-core:latest   # build locally: docker build -t quantum-shield-core:latest .
 ```
 
 ### 2. Verify
@@ -58,7 +58,7 @@ services:
       - qshield
 
   qshield:
-    image: ghcr.io/quantum-shield/core:latest
+    image: quantum-shield-core:latest   # build locally: docker build -t quantum-shield-core:latest .
     expose:
       - "8000"
     environment:
@@ -120,7 +120,7 @@ services:
       retries: 5
 
   qshield:
-    image: ghcr.io/quantum-shield/core:latest
+    image: quantum-shield-core:latest   # build locally: docker build -t quantum-shield-core:latest .
     depends_on:
       postgres:
         condition: service_healthy

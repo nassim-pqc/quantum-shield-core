@@ -264,7 +264,7 @@ helm install quantum-shield deploy/helm/quantum-shield/
 
 ### Kubernetes Deployment
 ```yaml
-- Container: ghcr.io/quantum-shield/core:latest
+- Container: quantum-shield-core:latest (build locally; no public image is published yet)
 - Ports: 8000
 - Environment: From secrets/configmap
 - Probes: HTTP /health
