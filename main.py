@@ -213,6 +213,42 @@ def _safe_errors(errors: list) -> list:
     return result
 
 
+# ---------------------------------------------------------------------------
+# Content-Security-Policy
+# ---------------------------------------------------------------------------
+# Strict default: nothing loads. Used for every endpoint except Swagger/ReDoc.
+_STRICT_CSP = "default-src 'none'"
+
+# Minimal policy that lets FastAPI's bundled Swagger UI / ReDoc render. Both
+# render an inline <script> bootstrap and pull their CSS+JS from jsDelivr, plus
+# the FastAPI favicon. We do NOT relax these directives on any other route.
+_DOCS_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "img-src 'self' data: https://fastapi.tiangolo.com; "
+    "font-src 'self' https://cdn.jsdelivr.net; "
+    "connect-src 'self'"
+)
+
+# Routes that need the docs CSP. /openapi.json is plain JSON and stays strict.
+_DOCS_PATHS: frozenset[str] = frozenset({"/docs", "/docs/oauth2-redirect", "/redoc"})
+
+_DOCS_ENABLED: bool = os.environ.get("ENABLE_DOCS", "").lower() == "true"
+
+
+def _csp_for_path(path: str, docs_enabled: bool = _DOCS_ENABLED) -> str:
+    """Return the Content-Security-Policy header value for a given request path.
+
+    Strict ``default-src 'none'`` everywhere, except on Swagger/ReDoc routes
+    when ``ENABLE_DOCS=true`` — those get a narrowly relaxed policy so the
+    bundled UI can render. Public-facing API endpoints are unaffected.
+    """
+    if docs_enabled and path in _DOCS_PATHS:
+        return _DOCS_CSP
+    return _STRICT_CSP
+
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -222,7 +258,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Content-Security-Policy"] = "default-src 'none'"
+    response.headers["Content-Security-Policy"] = _csp_for_path(request.url.path)
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     if "server" in response.headers:
         del response.headers["server"]

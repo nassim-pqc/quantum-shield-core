@@ -32,7 +32,20 @@ try:
 except ImportError:
     pass
 
-_logging.getLogger(__name__).info("rust_engine_status", extra={"loaded": _RUST_ENGINE_AVAILABLE})
+_logger = _logging.getLogger(__name__)
+_logger.info("rust_engine_status", extra={"loaded": _RUST_ENGINE_AVAILABLE})
+
+
+def _log_rust_fallback(operation: str, exc: BaseException) -> None:
+    """Warn that a Rust-engine code path fell back to the Python implementation.
+
+    Only the operation name and the exception type are logged — never any
+    plaintext, ciphertext, shared secret, audit key or other sensitive payload.
+    """
+    _logger.warning(
+        "rust_engine_fallback",
+        extra={"operation": operation, "reason": type(exc).__name__},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -111,8 +124,8 @@ class SecurityEngine:
         if _RUST_ENGINE_AVAILABLE and audit_key is not None:
             try:
                 self._rust_engine = quantum_shield_engine.SecurityEngine.with_audit_key(audit_key)
-            except Exception:
-                pass  # nosec B110
+            except Exception as exc:  # nosec B110 — fallback to Python is intentional
+                _log_rust_fallback("init", exc)
 
     # ------------------------------------------------------------------
     # Post-quantum key encapsulation (ML-KEM-768 / Kyber768)
@@ -196,8 +209,8 @@ class SecurityEngine:
                     "signature": signature,
                     "key_version": key_version,
                 }
-            except Exception:
-                pass  # nosec B110
+            except Exception as exc:  # nosec B110 — fallback to Python is intentional
+                _log_rust_fallback("audit_sign", exc)
 
         active_key = self.kms.get_audit_key(self.active_key_version)
         if active_key is None:
@@ -215,8 +228,8 @@ class SecurityEngine:
         if self._rust_engine is not None:
             try:
                 return self._rust_engine.verify_log(log_json_str, signature)
-            except Exception:
-                pass
+            except Exception as exc:  # nosec B110 — fallback to Python is intentional
+                _log_rust_fallback("audit_verify", exc)
 
         try:
             log_data = json.loads(log_json_str)

@@ -339,3 +339,90 @@ class TestHKDFKeyDerivation:
                 sealed["encrypted_data"],
                 b"wrong-context",
             )
+
+
+# ---------------------------------------------------------------------------
+# Rust fallback logging — no silent fallbacks, no payload leak
+# ---------------------------------------------------------------------------
+class TestRustFallbackLogging:
+    """When a Rust-engine path raises, the Python fallback must work AND emit
+    a structured warning that contains the operation name + exception type only —
+    never any sensitive payload (audit key, plaintext, signature, shared secret).
+    """
+
+    _SENSITIVE_TOKENS = (
+        "test-audit-key-minimum-32-bytes-ok!",  # AUDIT_KEY fixture
+        "shared_secret",
+        "plaintext",
+        "private_key",
+    )
+
+    def _assert_no_payload_leak(self, record):
+        msg = record.getMessage()
+        for token in self._SENSITIVE_TOKENS:
+            assert token not in msg, f"warning leaked sensitive token: {token!r}"
+        # Extras carry structured fields; check they don't carry payload either.
+        for forbidden in ("key", "secret", "plaintext", "ciphertext", "signature"):
+            assert forbidden not in (record.__dict__.get("operation") or "")
+
+    def test_python_path_works_without_rust(self, engine: SecurityEngine):
+        """With no Rust engine loaded, seal/unseal and audit must still pass."""
+        assert engine._rust_engine is None
+        pub, priv = engine.generate_keypair()
+        sealed = engine.encrypt_hybrid(pub, b"hello", b"ctx")
+        assert (
+            engine.decrypt_hybrid(
+                priv,
+                sealed["ciphertext_pqc"],
+                sealed["nonce"],
+                sealed["encrypted_data"],
+                b"ctx",
+            )
+            == b"hello"
+        )
+        signed = engine.generate_signed_log("ACTION", "tgt", "alice")
+        assert engine.verify_log(json.dumps(signed["log"], sort_keys=True), signed["signature"])
+
+    def test_rust_audit_sign_fallback_logs_warning(self, engine: SecurityEngine, caplog):
+        """Simulate a Rust engine present but failing on generate_signed_log."""
+
+        class _RaisingRust:
+            def generate_signed_log(self, *_a, **_k):
+                raise RuntimeError("rust-side hmac boom")
+
+            def verify_log(self, *_a, **_k):
+                raise RuntimeError("rust-side verify boom")
+
+        engine._rust_engine = _RaisingRust()
+        with caplog.at_level("WARNING", logger="security_engine"):
+            signed = engine.generate_signed_log("ACTION", "tgt", "alice")
+        assert signed["signature"]  # Python path produced a valid signature
+        warns = [r for r in caplog.records if r.message == "rust_engine_fallback"]
+        assert warns, "expected a rust_engine_fallback warning"
+        rec = warns[-1]
+        assert rec.levelname == "WARNING"
+        assert rec.__dict__.get("operation") == "audit_sign"
+        assert rec.__dict__.get("reason") == "RuntimeError"
+        self._assert_no_payload_leak(rec)
+
+    def test_rust_audit_verify_fallback_logs_warning(self, engine: SecurityEngine, caplog):
+        signed = engine.generate_signed_log("ACTION", "tgt", "bob")
+        log_json = json.dumps(signed["log"], sort_keys=True)
+
+        class _RaisingRust:
+            def generate_signed_log(self, *_a, **_k):
+                raise RuntimeError("nope")
+
+            def verify_log(self, *_a, **_k):
+                raise RuntimeError("rust-side verify boom")
+
+        engine._rust_engine = _RaisingRust()
+        with caplog.at_level("WARNING", logger="security_engine"):
+            ok = engine.verify_log(log_json, signed["signature"])
+        assert ok is True  # Python fallback verified the signature
+        warns = [r for r in caplog.records if r.message == "rust_engine_fallback"]
+        assert warns
+        rec = warns[-1]
+        assert rec.__dict__.get("operation") == "audit_verify"
+        assert rec.__dict__.get("reason") == "RuntimeError"
+        self._assert_no_payload_leak(rec)
