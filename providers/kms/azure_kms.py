@@ -45,6 +45,7 @@ from azure.core.exceptions import (
     ServiceRequestError,
 )
 from azure.identity import DefaultAzureCredential
+from azure.keyvault.keys.crypto import KeyWrapAlgorithm
 from tenacity import (
     before_sleep_log,
     retry,
@@ -142,7 +143,8 @@ class AzureKeyVaultClient:
       - Key Vault Keys API: get key metadata for health checks
     """
 
-    WRAPPING_ALGORITHM = "RSA-OAEP-256"
+    # Enum used for Azure SDK calls; .value == "RSA-OAEP-256" for JSON payloads
+    WRAPPING_ALGORITHM = KeyWrapAlgorithm.rsa_oaep_256
 
     def __init__(self, config: AzureKeyVaultConfig) -> None:
         self._config = config
@@ -461,7 +463,7 @@ class AzureKeyVaultProvider(KMSProvider):
         payload = {
             "v": 1,
             "k": wrapped_b64,
-            "algorithm": AzureKeyVaultClient.WRAPPING_ALGORITHM,
+            "algorithm": AzureKeyVaultClient.WRAPPING_ALGORITHM.value,
             "key_name": self._config.key_name,
             "vault_url": self._config.vault_url,
         }
