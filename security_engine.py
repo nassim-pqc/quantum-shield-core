@@ -16,7 +16,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import oqs
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from constants import AES_GCM_NONCE_BYTES, MIN_AUDIT_KEY_BYTES, PQC_ALGORITHM
 from observability.tracing import trace_crypto
@@ -31,6 +33,33 @@ except ImportError:
     pass
 
 _logging.getLogger(__name__).info("rust_engine_status", extra={"loaded": _RUST_ENGINE_AVAILABLE})
+
+
+# ---------------------------------------------------------------------------
+# Key derivation
+# ---------------------------------------------------------------------------
+# HKDF info string: domain-separates this AES-256-GCM usage from any other use
+# of the same KEM shared secret. Bumping this suffix invalidates older blobs.
+_HKDF_INFO_PREFIX: bytes = b"quantum-shield-core:aes-256-gcm:v1:"
+
+
+def _derive_aes_key(shared_secret: bytes, context: bytes = b"") -> bytes:
+    """Derive a 32-byte AES-256 key from a KEM shared secret via HKDF-SHA256.
+
+    Replaces a previous ``SHA-256(shared_secret)`` direct derivation, bringing the
+    KDF closer to NIST SP 800-56C / RFC 5869 guidance. The caller's ``context``
+    is bound into HKDF's ``info`` parameter for domain separation; the same
+    context is also passed to AES-GCM as AAD by callers.
+
+    This is an applied-crypto improvement; the engine has **not** undergone an
+    independent cryptographic audit.
+    """
+    return HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=_HKDF_INFO_PREFIX + context,
+    ).derive(shared_secret)
 
 
 # --- KMS Abstraction ---
@@ -106,19 +135,13 @@ class SecurityEngine:
         with oqs.KeyEncapsulation(self.pqc_alg) as kem:
             ciphertext_pqc, shared_secret = kem.encap_secret(public_key)
 
-        if self._rust_engine is not None:
-            try:
-                nonce, encrypted_data = self._rust_engine.encrypt_aes_gcm(
-                    shared_secret, plaintext, context
-                )
-            except Exception:
-                aes_key = hashlib.sha256(shared_secret).digest()
-                nonce = os.urandom(AES_GCM_NONCE_BYTES)
-                encrypted_data = AESGCM(aes_key).encrypt(nonce, plaintext, context)
-        else:
-            aes_key = hashlib.sha256(shared_secret).digest()
-            nonce = os.urandom(AES_GCM_NONCE_BYTES)
-            encrypted_data = AESGCM(aes_key).encrypt(nonce, plaintext, context)
+        # AES-256-GCM via Python HKDF-SHA256 derivation (single canonical path).
+        # The Rust engine's `encrypt_aes_gcm` is intentionally not used here
+        # because it derives via SHA-256(shared_secret) — keeping a single
+        # derivation path guarantees that any seal/unseal pair stays consistent.
+        aes_key = _derive_aes_key(shared_secret, context)
+        nonce = os.urandom(AES_GCM_NONCE_BYTES)
+        encrypted_data = AESGCM(aes_key).encrypt(nonce, plaintext, context)
 
         return {
             "ciphertext_pqc": ciphertext_pqc,
@@ -139,17 +162,9 @@ class SecurityEngine:
         with oqs.KeyEncapsulation(self.pqc_alg, secret_key=private_key) as kem:
             shared_secret = kem.decap_secret(ciphertext_pqc)
 
-        if self._rust_engine is not None:
-            try:
-                return self._rust_engine.decrypt_aes_gcm(
-                    shared_secret, nonce, encrypted_data, context
-                )
-            except Exception:
-                aes_key = hashlib.sha256(shared_secret).digest()
-                return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
-        else:
-            aes_key = hashlib.sha256(shared_secret).digest()
-            return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
+        # Mirrors encrypt_hybrid: single Python HKDF-SHA256 derivation path.
+        aes_key = _derive_aes_key(shared_secret, context)
+        return AESGCM(aes_key).decrypt(nonce, encrypted_data, context)
 
     # ------------------------------------------------------------------
     # Signed audit trail (HMAC-SHA256, key versioning)
