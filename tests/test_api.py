@@ -75,6 +75,53 @@ class TestSecurityHeaders:
         r = await client.get("/health")
         assert r.headers.get("x-content-type-options") == "nosniff"
 
+    @pytest.mark.asyncio
+    async def test_csp_strict_on_api_endpoint(self, client: AsyncClient):
+        """Public API endpoints always get the strict default-src 'none' CSP."""
+        r = await client.get("/health")
+        assert r.headers.get("content-security-policy") == "default-src 'none'"
+
+
+class TestCSPHelper:
+    """Unit tests for the CSP path-routing helper.
+
+    Avoids reloading the FastAPI app — _DOCS_ENABLED is captured at import time,
+    so we test the helper directly with both flag values.
+    """
+
+    def test_strict_csp_on_health_when_docs_disabled(self):
+        from main import _STRICT_CSP, _csp_for_path
+
+        assert _csp_for_path("/health", docs_enabled=False) == _STRICT_CSP
+
+    def test_strict_csp_on_docs_when_docs_disabled(self):
+        from main import _STRICT_CSP, _csp_for_path
+
+        assert _csp_for_path("/docs", docs_enabled=False) == _STRICT_CSP
+
+    def test_relaxed_csp_on_docs_when_docs_enabled(self):
+        from main import _DOCS_CSP, _csp_for_path
+
+        assert _csp_for_path("/docs", docs_enabled=True) == _DOCS_CSP
+
+    def test_relaxed_csp_on_redoc_when_docs_enabled(self):
+        from main import _DOCS_CSP, _csp_for_path
+
+        assert _csp_for_path("/redoc", docs_enabled=True) == _DOCS_CSP
+
+    def test_strict_csp_on_api_route_when_docs_enabled(self):
+        """API endpoints stay strict even when docs are enabled."""
+        from main import _STRICT_CSP, _csp_for_path
+
+        assert _csp_for_path("/health", docs_enabled=True) == _STRICT_CSP
+        assert _csp_for_path("/api/v1/keys/generate", docs_enabled=True) == _STRICT_CSP
+
+    def test_openapi_json_stays_strict(self):
+        """Plain-JSON /openapi.json does not need the relaxed policy."""
+        from main import _STRICT_CSP, _csp_for_path
+
+        assert _csp_for_path("/openapi.json", docs_enabled=True) == _STRICT_CSP
+
 
 # ===========================================================================
 # Authentication & RBAC
