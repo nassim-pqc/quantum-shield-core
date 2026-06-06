@@ -79,7 +79,7 @@ Quantum Shield Core is a post-quantum cryptographic microservice implementing NI
 | `test_constants.py` | Constants tests | Enum values |
 | `test_security.py` | Security tests | Headers, rate limiting |
 
-**Total**: 139 tests (all passing)
+**Total**: 204 tests (all passing)
 
 ### 2.2 Go Tests
 

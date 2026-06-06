@@ -1,7 +1,6 @@
 # Public Documentation Index
 
-> Index of technical documentation available in this repository.
-> Generated during `repo-public-cleanup`.
+> Index of technical documentation in this repository.
 
 ## Architecture
 
@@ -21,14 +20,15 @@
 | [FIPS Readiness](FIPS_READINESS.md) | FIPS-aware design (not certified) |
 | [Side-channel Readiness](SIDE_CHANNEL_READINESS.md) | Side-channel-aware design (not verified) |
 | [Container Hardening](CONTAINER_HARDENING.md) | Docker hardening configuration |
+| [HKDF Key Derivation](HKDF_KEY_DERIVATION_UPDATE.md) | AES key derivation via HKDF-SHA256 |
+| [Rust Fallback & Docs CSP](RUST_FALLBACK_AND_DOCS_CSP_UPDATE.md) | Operational logging + CSP notes |
 
 ## KMS Providers
 
 | Document | Description |
 |----------|-------------|
 | [Azure Key Vault Guide](AZURE_KEY_VAULT_GUIDE.md) | Azure KMS integration |
-| [Azure KMS Implementation Summary](AZURE_KMS_IMPLEMENTATION_SUMMARY.md) | Azure integration details |
-| [Azure KMS Audit](AZURE_KMS_AUDIT.md) | Azure KMS audit findings |
+| [Azure Key Vault Validation Fix](AZURE_KEY_VAULT_REAL_VALIDATION_FIX.md) | Wrap-algorithm enum fix + real validation |
 
 ## Performance
 
@@ -36,15 +36,12 @@
 |----------|-------------|
 | [Performance Benchmark Report](PERFORMANCE_BENCHMARK_REPORT.md) | Full benchmark methodology and results |
 | [Performance Regression Guide](PERFORMANCE_REGRESSION_GUIDE.md) | How to detect regressions |
-| [Performance Audit](PERFORMANCE_AUDIT.md) | Performance audit findings |
 
 ## SDK
 
 | Document | Description |
 |----------|-------------|
 | [Go SDK Guide](GO_SDK_GUIDE.md) | Go SDK usage and examples |
-| [Go SDK Implementation Summary](GO_SDK_IMPLEMENTATION_SUMMARY.md) | Go SDK design notes |
-| [Go SDK Audit](GO_SDK_AUDIT.md) | Go SDK code review |
 | [PyPI Release Guide](PYPI_RELEASE_GUIDE.md) | Publishing Python SDK to PyPI |
 
 ## API
@@ -57,11 +54,11 @@
 
 | Document | Description |
 |----------|-------------|
-| [AWS KMS Provider Audit](../evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md) | AWS KMS implementation audit |
-| [AWS KMS Pending Validation](../evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md) | Real AWS KMS validation status — PENDING (not executed) |
-| [AWS KMS Algorithm Fix Summary](../evidence/cloud-validation/aws-kms/AWS_KMS_ALGORITHM_FIX_SUMMARY.md) | Algorithm fix documentation |
-| [AWS KMS Manual Setup Guide](../evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md) | Manual setup instructions |
-| [AWS KMS CloudTrail Procedure](../evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_PROCEDURE.md) | CloudTrail procedure (no evidence available yet) |
+| [Azure Key Vault — Real Validation](../evidence/cloud-validation/azure/AZURE_KEY_VAULT_REAL_VALIDATION.md) | Validated against a real Azure Key Vault test environment |
+| [HashiCorp Vault — Real Local Validation](../evidence/cloud-validation/vault/VAULT_REAL_LOCAL_VALIDATION.md) | Validated against a real local Vault dev server (Docker) |
+| [AWS KMS — Provider Audit](../evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md) | AWS KMS provider source audit |
+| [AWS KMS — Pending Validation](../evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md) | Real AWS KMS cloud validation — PENDING (not executed) |
+| [AWS KMS — Manual Setup Guide](../evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md) | Setup steps to run the real AWS validation |
 
 ## Operations
 

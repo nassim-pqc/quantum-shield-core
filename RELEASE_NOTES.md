@@ -1,19 +1,21 @@
-# Release Notes — Quantum Shield Core v1.0.0 (Enterprise)
+# Release Notes — Quantum Shield Core v1.0.0
 
 **Tag:** `v1.0.0`  
 **Date:** 2026-05-28  
-**Codename:** Enterprise GA
+**Status:** Pre-production
 
 ## Summary
 
-First **public enterprise release** of Quantum Shield Core — a sovereign post-quantum cryptographic microservice with NIS2-ready audit trail, PostgreSQL persistence, and Docker-first deployment.
+First public, pre-production release of Quantum Shield Core — a post-quantum
+cryptographic microservice with an HMAC-signed audit trail, PostgreSQL
+persistence, and Docker-first deployment.
 
 ## Highlights
 
 - **PQC:** ML-KEM-768 (Kyber768) hybrid encryption + AES-256-GCM with mandatory AAD
 - **Audit:** HMAC-SHA256 append-only trail, key rotation, integrity verification on read
 - **Ops:** Docker Compose, Alembic, Prometheus `/metrics`, JSON logs + correlation IDs
-- **Commercial:** Benchmarks (1 KB / 1 MB / 10 MB), demo kit, live doc screenshots
+- **Benchmarks:** reproducible local measurements (1 KB / 1 MB / 10 MB), demo kit
 
 ## Upgrade from development builds
 
