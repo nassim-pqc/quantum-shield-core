@@ -1,7 +1,9 @@
 # ============================================================================
 # Quantum Shield Core — Helm values
 # ============================================================================
-# Production-ready configuration for enterprise Kubernetes deployments.
+# Pre-production configuration template for local or evaluation Kubernetes
+# deployments. No public image is published yet — build locally and push to
+# your own registry, then set `image.repository` and `image.tag` accordingly.
 # ============================================================================
 
 # --- Global settings ---
@@ -10,8 +12,11 @@ global:
   imagePullSecrets: []
 
 # --- Image ---
+# No public Quantum Shield image is published yet. Build locally with
+# `docker build -t <your-registry>/quantum-shield-core:<tag> .` and override
+# the values below.
 image:
-  repository: quantum-shield/core
+  repository: REPLACE_WITH_YOUR_REGISTRY/quantum-shield-core
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 

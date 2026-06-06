@@ -10,7 +10,7 @@ Quantum Shield Core is an **enterprise post-quantum cryptographic microservice**
 
 The project provides:
 
-- A **production-ready API** (FastAPI + Rust core engine) for post-quantum key generation, encryption, and decryption
+- A **pre-production API** (FastAPI + partial Rust acceleration) for post-quantum key generation, encryption, and decryption
 - A **stateless architecture** where no user private key is ever stored server-side
 - An **HMAC-signed, append-only audit trail** with key rotation support
 - **Pluggable KMS providers** (AWS KMS, HashiCorp Vault, Azure Key Vault)

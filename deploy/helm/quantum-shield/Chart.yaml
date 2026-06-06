@@ -1,26 +1,24 @@
 apiVersion: v2
 name: quantum-shield
-description: Enterprise Helm chart for Quantum Shield Core — post-quantum cryptographic microservice
+description: Pre-production Helm chart for Quantum Shield Core — post-quantum cryptographic microservice (local / evaluation deployments)
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
-icon: https://raw.githubusercontent.com/quantum-shield/core/main/docs/images/icon.svg
 keywords:
   - post-quantum
   - cryptography
   - ml-kem
   - kyber
   - pqc
-  - nis2
   - security
-home: https://github.com/quantum-shield/core
+home: https://github.com/nassim-pqc/quantum-shield-core
 sources:
-  - https://github.com/quantum-shield/core
+  - https://github.com/nassim-pqc/quantum-shield-core
 maintainers:
-  - name: Quantum Shield Team
-    email: security@quantum-shield.io
+  - name: Quantum Shield Core maintainers
+    url: https://github.com/nassim-pqc/quantum-shield-core/security
 annotations:
   artifacthub.io/category: security
   artifacthub.io/license: Proprietary
-  artifacthub.io/prerelease: "false"
+  artifacthub.io/prerelease: "true"
   artifacthub.io/containsSecurityUpdates: "true"

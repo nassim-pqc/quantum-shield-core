@@ -62,7 +62,7 @@ import (
 )
 
 opts := types.DefaultOptions()
-opts.BaseURL = "https://api.quantum-shield.io:8443"
+opts.BaseURL = "https://qshield.example.com:8443"  // your Quantum Shield deployment URL
 opts.APIKey = "your-operator-key"
 opts.Timeout = 15 * time.Second
 opts.RetryMaxAttempts = 5
