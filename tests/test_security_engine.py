@@ -270,3 +270,72 @@ class TestEngineInit:
     def test_pqc_alg_attribute_is_kyber768(self):
         engine = SecurityEngine(audit_key=AUDIT_KEY)
         assert engine.pqc_alg == "Kyber768"
+
+
+# ---------------------------------------------------------------------------
+# HKDF-SHA256 key derivation (replaces previous direct SHA-256(shared_secret))
+# ---------------------------------------------------------------------------
+class TestHKDFKeyDerivation:
+    """Properties of the HKDF-SHA256 AES key derivation."""
+
+    def test_derivation_returns_32_bytes(self):
+        from security_engine import _derive_aes_key
+
+        key = _derive_aes_key(b"x" * 32, context=b"ctx")
+        assert isinstance(key, bytes)
+        assert len(key) == 32
+
+    def test_same_secret_and_context_yields_same_key(self):
+        from security_engine import _derive_aes_key
+
+        secret = os.urandom(32)
+        assert _derive_aes_key(secret, b"same-ctx") == _derive_aes_key(secret, b"same-ctx")
+
+    def test_different_context_yields_different_key(self):
+        from security_engine import _derive_aes_key
+
+        secret = os.urandom(32)
+        assert _derive_aes_key(secret, b"ctx-A") != _derive_aes_key(secret, b"ctx-B")
+
+    def test_different_secret_yields_different_key(self):
+        from security_engine import _derive_aes_key
+
+        ctx = b"shared-context"
+        assert _derive_aes_key(os.urandom(32), ctx) != _derive_aes_key(os.urandom(32), ctx)
+
+    def test_derivation_is_not_plain_sha256(self):
+        """Guard against regression to SHA-256(shared_secret) direct."""
+        from security_engine import _derive_aes_key
+
+        secret = b"\x00" * 32
+        assert _derive_aes_key(secret, b"context") != hashlib.sha256(secret).digest()
+
+    def test_seal_unseal_roundtrip_uses_hkdf(self, engine: SecurityEngine):
+        """End-to-end check: HKDF-based seal/unseal still roundtrips cleanly."""
+        pub, priv = engine.generate_keypair()
+        plaintext = b"Quantum Shield Core HKDF roundtrip"
+        context = b"hkdf-roundtrip-context"
+
+        sealed = engine.encrypt_hybrid(pub, plaintext, context)
+        recovered = engine.decrypt_hybrid(
+            priv,
+            sealed["ciphertext_pqc"],
+            sealed["nonce"],
+            sealed["encrypted_data"],
+            context,
+        )
+        assert recovered == plaintext
+
+    def test_wrong_context_still_fails_under_hkdf(self, engine: SecurityEngine):
+        """Defense-in-depth: context mismatch fails at AES-GCM AAD AND at HKDF."""
+        pub, priv = engine.generate_keypair()
+        sealed = engine.encrypt_hybrid(pub, b"payload", b"correct-context")
+
+        with pytest.raises(Exception):
+            engine.decrypt_hybrid(
+                priv,
+                sealed["ciphertext_pqc"],
+                sealed["nonce"],
+                sealed["encrypted_data"],
+                b"wrong-context",
+            )
