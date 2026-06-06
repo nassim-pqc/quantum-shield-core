@@ -1,4 +1,4 @@
-# AWS KMS Direct CLI Validation
+# AWS KMS Direct CLI Validation Procedure (Not Executed)
 
 > **Date**: June 2026  
 > **Region**: N/A (validation not executed)  

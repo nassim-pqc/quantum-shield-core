@@ -1,7 +1,7 @@
 # Quantum Shield Core
 
-[![CI](https://github.com/quantum-shield/core/actions/workflows/ci.yml/badge.svg)](https://github.com/quantum-shield/core/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![CI](https://github.com/nassim-pqc/quantum-shield-core/actions/workflows/ci.yml/badge.svg)](https://github.com/nassim-pqc/quantum-shield-core/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](requirements.txt)
 [![Rust](https://img.shields.io/badge/rust-compiled-orange)](rust-engine/Cargo.toml)
 [![ML-KEM](https://img.shields.io/badge/pqc-ML--KEM--768-purple)](docs/adr/001-ml-kem-768.md)
@@ -146,4 +146,4 @@ Threat model: [docs/security/threat-model.md](docs/security/threat-model.md)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Proprietary — All rights reserved. See [LICENSE](LICENSE).

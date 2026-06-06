@@ -1,4 +1,4 @@
-# AWS KMS Provider — Real Validation Report
+# AWS KMS Provider — Real Validation PENDING (Not Executed)
 
 > **Date**: June 2026  
 > **Provider file**: `providers/kms/aws_kms.py`  

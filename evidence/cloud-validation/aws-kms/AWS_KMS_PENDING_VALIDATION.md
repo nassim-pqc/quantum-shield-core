@@ -1,4 +1,8 @@
-# AWS KMS Real Validation — Summary Report
+# AWS KMS Real Validation — PENDING (Status Report)
+
+> **Real AWS KMS cloud validation has NOT been executed.** The AWS KMS provider is
+> implemented and covered by unit/mock tests (symmetric + RSA), but it has not yet
+> been validated against a live AWS account. This document tracks that pending status.
 
 > **Date**: June 2026  
 > **Environment**: Local development machine  
@@ -100,10 +104,10 @@ deployment or external security audit.
 |------|---------|
 | `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md` | Full source code audit |
 | `evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md` | Step-by-step AWS KMS setup guide |
-| `evidence/cloud-validation/aws-kms/AWS_KMS_DIRECT_CLI_VALIDATION.md` | CLI validation report (not executed) |
-| `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_REAL_VALIDATION.md` | Provider validation report (not executed) |
-| `evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_EVIDENCE.md` | CloudTrail evidence (not available) |
-| `evidence/cloud-validation/aws-kms/AWS_KMS_REAL_VALIDATION_SUMMARY.md` | This file — overall summary |
+| `evidence/cloud-validation/aws-kms/AWS_KMS_DIRECT_CLI_PROCEDURE.md` | CLI validation procedure (not executed) |
+| `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_VALIDATION_PENDING.md` | Provider validation report (not executed) |
+| `evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_PROCEDURE.md` | CloudTrail procedure (no evidence available yet) |
+| `evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md` | This file — overall pending status |
 | `scripts/validate_real_aws_kms.py` | Python script for provider validation |
 
 ---

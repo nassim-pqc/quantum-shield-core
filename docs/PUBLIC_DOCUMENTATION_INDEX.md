@@ -58,10 +58,10 @@
 | Document | Description |
 |----------|-------------|
 | [AWS KMS Provider Audit](../evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md) | AWS KMS implementation audit |
-| [AWS KMS Real Validation Summary](../evidence/cloud-validation/aws-kms/AWS_KMS_REAL_VALIDATION_SUMMARY.md) | Real AWS KMS validation |
+| [AWS KMS Pending Validation](../evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md) | Real AWS KMS validation status — PENDING (not executed) |
 | [AWS KMS Algorithm Fix Summary](../evidence/cloud-validation/aws-kms/AWS_KMS_ALGORITHM_FIX_SUMMARY.md) | Algorithm fix documentation |
 | [AWS KMS Manual Setup Guide](../evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md) | Manual setup instructions |
-| [AWS KMS CloudTrail Evidence](../evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_EVIDENCE.md) | CloudTrail integration |
+| [AWS KMS CloudTrail Procedure](../evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_PROCEDURE.md) | CloudTrail procedure (no evidence available yet) |
 
 ## Operations
 
