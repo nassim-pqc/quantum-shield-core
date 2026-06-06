@@ -10,7 +10,13 @@ Post-quantum cryptographic microservice implementing **ML-KEM-768** (FIPS 203 / 
 
 ## Current Status
 
-This project is **pre-production** and **pre-commercial**. The core encryption engine is implemented and tested (139 unit tests), but it has not undergone an independent cryptographic audit, has no production deployment track record, and has no revenue. It is suitable for evaluation, POC, and integration testing.
+This project is **pre-production** and **pre-commercial**. The core encryption engine is implemented and tested, but it has not undergone an independent cryptographic audit, has no production deployment track record, and has no customers or revenue. It is suitable for evaluation, POC, and integration testing.
+
+- No external cryptographic audit
+- No customers, no revenue
+- Azure Key Vault — validated against a real Azure Key Vault test environment
+- HashiCorp Vault — validated against a real local Vault dev server (Docker)
+- AWS KMS — implemented (symmetric + RSA), unit-tested; **real cloud validation pending**
 
 ## Features
 
@@ -115,12 +121,22 @@ Threat model: [docs/security/threat-model.md](docs/security/threat-model.md)
 
 ## Validation
 
-- 139 unit tests (pytest)
+- 204 unit tests (pytest)
 - Ruff linting (all checks passing)
 - Go SDK tests + vet (all passing)
 - Docker build + hardening
 - Benchmarks reproducible locally
-- Cloud validation documentation in [evidence/cloud-validation/](evidence/cloud-validation/)
+
+### KMS validation status
+
+| Provider | Implemented | Unit tested | Real validation |
+|----------|-------------|-------------|-----------------|
+| Local env | ✅ | ✅ | n/a |
+| Azure Key Vault | ✅ | ✅ | ✅ real Azure test environment |
+| HashiCorp Vault | ✅ | ✅ | ✅ real local Vault dev server (Docker) |
+| AWS KMS | ✅ | ✅ | ⏳ pending |
+
+Cloud validation evidence: [evidence/cloud-validation/](evidence/cloud-validation/)
 
 ## Roadmap
 

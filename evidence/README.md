@@ -243,7 +243,7 @@ The project uses GitHub Actions for continuous integration:
 
 - **Lint**: Ruff check + Ruff format
 - **Security**: Bandit SAST + Semgrep
-- **Tests**: Python 3.11 & 3.12 (139 tests)
+- **Tests**: Python 3.11 & 3.12 (204 tests)
 - **Rust**: Build + tests (PyO3 engine)
 - **Docker**: Multi-stage build verification
 - **Helm**: Chart lint

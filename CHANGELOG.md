@@ -2,15 +2,14 @@
 
 All notable changes to **Quantum Shield Core** follow [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] — 2026-05-28 — Enterprise GA
+## [1.0.0] — 2026-05-28 — First public release (pre-production)
 
-First public enterprise release for GitHub, Acquire.com, and OEM distribution.
+First public, pre-production release.
 
 ### Added
-- Enterprise GA packaging: `RELEASE_NOTES.md`, `scripts/validate_release.sh`
-- Live documentation screenshots (health, Swagger UI, metrics, Docker, audit, logs)
-- Demo kit: `demo.sh`, 2-minute walkthrough, Swagger tour, curl examples
-- Landing page, observability package, KMS stubs (AWS, Vault, Azure)
+- Release packaging: `RELEASE_NOTES.md`, `scripts/validate_release.sh`
+- Demo kit: `demo.sh`, walkthrough, Swagger tour, curl examples
+- Landing page, observability package, KMS providers (AWS, Vault, Azure)
 
 ### Security
 - No secrets in repository — `.env.example` placeholders only
