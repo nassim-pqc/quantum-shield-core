@@ -1,13 +1,17 @@
 # --- Web Framework & API ---
-fastapi==0.111.0
+fastapi==0.133.1
+# starlette is a transitive dep of fastapi; pinned explicitly so security
+# advisories are tracked deterministically (PYSEC-2026-161 Host-header fix
+# only landed in starlette 1.0.1, which requires fastapi>=0.133).
+starlette==1.2.1
 uvicorn[standard]==0.30.1
-python-multipart==0.0.9
+python-multipart==0.0.32
 
 # --- Data Validation ---
 pydantic==2.7.4
 
 # --- Cryptography ---
-cryptography==42.0.7
+cryptography==46.0.6
 liboqs-python==0.14.1
 
 # --- Database (async ORM) ---
@@ -18,7 +22,7 @@ alembic==1.13.2
 
 # --- Observability & Security ---
 slowapi==0.1.9
-prometheus-fastapi-instrumentator==7.0.0
+prometheus-fastapi-instrumentator==8.0.0
 prometheus-client==0.20.0
 opentelemetry-api==1.25.0
 opentelemetry-sdk==1.25.0
@@ -38,4 +42,4 @@ azure-identity==1.16.1
 tenacity>=8.2,<9.0
 
 # --- Config ---
-python-dotenv==1.0.1
+python-dotenv==1.2.2
