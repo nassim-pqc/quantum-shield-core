@@ -13,10 +13,9 @@
 |---|------|---------|
 | 1 | `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md` | Full source code audit of `providers/kms/aws_kms.py` |
 | 2 | `evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md` | Step-by-step guide to configure AWS CLI + KMS for validation |
-| 3 | `evidence/cloud-validation/aws-kms/AWS_KMS_DIRECT_CLI_PROCEDURE.md` | CLI validation procedure (not executed — no AWS CLI) |
-| 4 | `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_VALIDATION_PENDING.md` | Provider validation report (not executed — no AWS credentials) |
-| 5 | `evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_PROCEDURE.md` | CloudTrail procedure (no evidence available yet — no AWS access) |
-| 6 | `evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md` | Overall pending status with verdict |
+| 3 | `evidence/cloud-validation/aws-kms/AWS_KMS_DIRECT_CLI_PROCEDURE.md` | CLI validation procedure (executed — PASS, see real validation) |
+| 4 | `evidence/cloud-validation/aws-kms/AWS_KMS_CLOUDTRAIL_PROCEDURE.md` | CloudTrail procedure (not collected) |
+| 5 | `evidence/cloud-validation/aws-kms/AWS_KMS_REAL_CLOUD_VALIDATION.md` | Overall real cloud validation — PASS |
 | 7 | `evidence/cloud-validation/aws-kms/CREATION_SUMMARY.md` | This file |
 | 8 | `scripts/validate_real_aws_kms.py` | Python script to validate provider against real AWS KMS |
 

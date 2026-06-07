@@ -56,9 +56,9 @@
 |----------|-------------|
 | [Azure Key Vault — Real Validation](../evidence/cloud-validation/azure/AZURE_KEY_VAULT_REAL_VALIDATION.md) | Validated against a real Azure Key Vault test environment |
 | [HashiCorp Vault — Real Local Validation](../evidence/cloud-validation/vault/VAULT_REAL_LOCAL_VALIDATION.md) | Validated against a real local Vault dev server (Docker) |
+| [AWS KMS — Real Cloud Validation](../evidence/cloud-validation/aws-kms/AWS_KMS_REAL_CLOUD_VALIDATION.md) | Validated against a real AWS KMS test key (CLI + provider roundtrip) — PASS |
 | [AWS KMS — Provider Audit](../evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md) | AWS KMS provider source audit |
-| [AWS KMS — Pending Validation](../evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md) | Real AWS KMS cloud validation — PENDING (not executed) |
-| [AWS KMS — Manual Setup Guide](../evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md) | Setup steps to run the real AWS validation |
+| [AWS KMS — Manual Setup Guide](../evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md) | Setup steps to reproduce the real AWS validation |
 
 ## Operations
 
