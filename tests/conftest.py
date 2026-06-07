@@ -15,12 +15,10 @@ _TEST_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _TEST_DB.close()
 os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{_TEST_DB.name}")
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-import audit_store
 from database import Base, get_db
 from main import app, crypto_engine
 from models import ApiKey
@@ -32,13 +30,6 @@ AUDITOR_HEADERS = {"X-API-Key": AUDITOR_KEY}
 INVALID_HEADERS = {"X-API-Key": "this-key-does-not-exist-and-is-invalid"}
 TEST_CONTEXT = "test-aad-context-document-42"
 TEST_MESSAGE = b"Message ultra-confidentiel pour les tests Quantum Shield."
-
-
-@pytest.fixture(autouse=True)
-def reset_audit_store():
-    """Reset the in-memory audit store before each test."""
-    audit_store._store = audit_store._InMemoryStore()
-    yield
 
 
 @pytest_asyncio.fixture

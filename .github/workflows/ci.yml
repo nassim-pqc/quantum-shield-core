@@ -38,9 +38,17 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Bandit SAST
         run: bandit -r . --skip B101,B104,B105,B106,B108,B110,B404,B603,B607 --quiet
-      # - name: pip-audit
-      #   run: pip-audit --desc on || true
+      - name: pip-audit (advisory)
+        # Advisory only: surfaces known advisories in runtime dependencies
+        # (currently cryptography / starlette / python-multipart / python-dotenv).
+        # Clearing them requires a dependency-bump pass tracked separately, so
+        # this step reports findings without failing the build.
+        continue-on-error: true
+        run: pip-audit -r requirements.txt --desc on
       - name: Semgrep
+        # Advisory only: one known wildcard-CORS finding on the dev default
+        # (allow_origins fallback, used only when ALLOWED_ORIGINS is unset, with
+        # allow_credentials=False). Reports findings without failing the build.
         continue-on-error: true
         run: semgrep --config=auto --error .
 

@@ -54,8 +54,8 @@ Quantum Shield Core is a **stateless, post-quantum cryptographic microservice** 
         ▼                              ▼
 ┌──────────────────┐    ┌─────────────────────────────┐
 │  PostgreSQL /    │    │  Audit Store                │
-│  SQLite (Async)  │    │  - In-memory (OSS)          │
-│  - api_keys      │    │  - PostgreSQL (Enterprise)  │
+│  SQLite (Async)  │    │  - SQLAlchemy-backed        │
+│  - api_keys      │    │  - HMAC + SHA-256 chain     │
 │  - audit_logs    │    └─────────────────────────────┘
 └──────────────────┘
 ```
@@ -99,7 +99,8 @@ Quantum Shield Core is a **stateless, post-quantum cryptographic microservice** 
 - **SQLAlchemy async** ORM with SQLite (dev) or PostgreSQL (prod)
 - **Models**: `ApiKey` (hashed keys), `AuditLog` (signed entries)
 - **Alembic** for schema migrations
-- **In-memory audit store** as OSS fallback (`audit_store.py`)
+- **SQLAlchemy-backed audit store** (`audit_store.py`) writing signed,
+  hash-chained entries to the `audit_logs` table
 
 ### 6. Observability (`observability/`)
 - **Structured JSON logging** with `JsonFormatter`
@@ -172,7 +173,7 @@ Client → POST /api/v1/audit/log
     → Build JSON with {action, key_version, target, timestamp, user}
     → HMAC-SHA256(key, json_bytes)
     → Returns {log, signature, key_version}
-  → Store in audit store (in-memory or PostgreSQL)
+  → Persist via SQLAlchemy audit store (SQLite dev / PostgreSQL deploy)
   → Return {id, log, signature}
 
 Verification:
