@@ -24,7 +24,7 @@ flowchart TB
 | `audit_store.py` | Append-only audit persistence + hash-chain prep |
 | `database.py` | Async SQLAlchemy engine / pool |
 | `models.py` | `ApiKey`, `AuditLog` |
-| `providers/kms/` | AWS / Vault / Azure stubs |
+| `providers/kms/` | AWS KMS / Vault / Azure Key Vault providers |
 | `observability.py` | Logs, correlation ID, metrics, OTEL |
 
 ## Data Flow — Seal

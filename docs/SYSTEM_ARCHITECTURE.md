@@ -54,8 +54,8 @@ Quantum Shield Core is a **stateless, post-quantum cryptographic microservice** 
         ▼                              ▼
 ┌──────────────────┐    ┌─────────────────────────────┐
 │  PostgreSQL /    │    │  Audit Store                │
-│  SQLite (Async)  │    │  - In-memory (OSS)          │
-│  - api_keys      │    │  - PostgreSQL (Enterprise)  │
+│  SQLite (Async)  │    │  - SQLAlchemy-backed        │
+│  - api_keys      │    │  - HMAC + SHA-256 chain     │
 │  - audit_logs    │    └─────────────────────────────┘
 └──────────────────┘
 ```
@@ -90,16 +90,22 @@ Quantum Shield Core is a **stateless, post-quantum cryptographic microservice** 
 
 ### 4. KMS Providers (`providers/kms/`)
 - **Base interfaces**: `KeyWrapper`, `SecretProvider`, `KMSProvider`
-- **AWS KMS**: RSAES_OAEP_SHA_256 for DEK wrapping, env-based audit keys
+- **AWS KMS**: symmetric DEK wrapping via `SYMMETRIC_DEFAULT` (`ENCRYPT_DECRYPT`);
+  RSAES_OAEP_SHA_256 also supported. Validated against a real AWS KMS test key
+  using the `SYMMETRIC_DEFAULT` path (see
+  `evidence/cloud-validation/aws-kms/AWS_KMS_REAL_CLOUD_VALIDATION.md`).
 - **HashiCorp Vault**: Transit Engine + KV v2 for secrets
-- **Azure Key Vault**: secrets management (stub)
+- **Azure Key Vault**: DEK wrapping via RSA-OAEP-256. Validated against a real
+  Azure Key Vault test environment (see
+  `evidence/cloud-validation/azure/AZURE_KEY_VAULT_REAL_VALIDATION.md`).
 - All providers implement retry via `tenacity`
 
 ### 5. Data Layer
 - **SQLAlchemy async** ORM with SQLite (dev) or PostgreSQL (prod)
 - **Models**: `ApiKey` (hashed keys), `AuditLog` (signed entries)
 - **Alembic** for schema migrations
-- **In-memory audit store** as OSS fallback (`audit_store.py`)
+- **SQLAlchemy-backed audit store** (`audit_store.py`) writing signed,
+  hash-chained entries to the `audit_logs` table
 
 ### 6. Observability (`observability/`)
 - **Structured JSON logging** with `JsonFormatter`
@@ -172,7 +178,7 @@ Client → POST /api/v1/audit/log
     → Build JSON with {action, key_version, target, timestamp, user}
     → HMAC-SHA256(key, json_bytes)
     → Returns {log, signature, key_version}
-  → Store in audit store (in-memory or PostgreSQL)
+  → Persist via SQLAlchemy audit store (SQLite dev / PostgreSQL deploy)
   → Return {id, log, signature}
 
 Verification:

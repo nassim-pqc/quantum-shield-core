@@ -17,16 +17,29 @@ from database import get_db
 from models import ApiKey
 
 RoleType = Literal["operator", "auditor"]
-API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=True)
+# auto_error=False: we raise the missing/empty-key error ourselves so the status
+# code stays 403 (the project's historical contract). With auto_error=True the
+# underlying APIKeyHeader returns 401 on a missing header in current
+# Starlette/FastAPI, which would silently change the API contract on upgrade.
+API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def get_current_role(
-    api_key: str = Security(API_KEY_HEADER), db: AsyncSession = Depends(get_db)
+    api_key: str | None = Security(API_KEY_HEADER), db: AsyncSession = Depends(get_db)
 ) -> str:
     """
     FastAPI dependency — resolves the caller's role from DB.
     Uses SHA-256 hashing so plaintext keys are never queried or stored.
+
+    A missing, empty, invalid, or inactive key all return 403 with the same
+    opaque message (no distinction is leaked between the cases).
     """
+    if not api_key or not api_key.strip():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid, missing, or inactive API key.",
+        )
+
     key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
     result = await db.execute(

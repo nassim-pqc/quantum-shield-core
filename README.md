@@ -23,7 +23,7 @@ This project is **pre-production** and **pre-commercial**. The core encryption e
 - ML-KEM-768 key encapsulation (via liboqs-python)
 - AES-256-GCM symmetric encryption (via pyca/cryptography), AES key derived via HKDF-SHA256
 - Stateless architecture — no private keys stored server-side
-- Signed audit trail — append-only, HMAC-SHA256 with key rotation (in-memory store currently)
+- Signed audit trail — append-only, HMAC-SHA256 with key rotation + SHA-256 hash-chain links, persisted via SQLAlchemy (SQLite dev / PostgreSQL deploy)
 - Rust core engine — partial acceleration path for HMAC/audit (PyO3 bindings, `panic = "abort"` in release). AES-GCM is performed by the canonical Python path
 - Pluggable KMS providers — local env, AWS KMS, HashiCorp Vault, Azure Key Vault
 - Observability — Prometheus metrics, OpenTelemetry tracing, JSON structured logging
@@ -59,15 +59,18 @@ Full deploy guide: [docs/live-demo-deployment.md](docs/live-demo-deployment.md)
 | KEM | liboqs-python | ML-KEM-768 key encapsulation |
 | AEAD | pyca/cryptography | AES-256-GCM with AAD, HKDF-SHA256 key derivation |
 | Rust | PyO3 | Partial acceleration path for HMAC/audit (when built) |
-| Audit | In-memory signed store (current) | HMAC-SHA256 append-only log, persistence WIP |
+| Audit | SQLAlchemy store (SQLite / PostgreSQL) | HMAC-SHA256 signed, append-only, SHA-256 hash-chain links |
 | Metrics | Prometheus | Operations count, latency |
 | Tracing | OpenTelemetry | W3C trace context, OTLP export |
 
-> **Audit storage note.** The current audit trail is an in-memory signed store
-> suitable for local and pre-production evaluation. SQLAlchemy and PostgreSQL
-> models exist (`models.py`) for the persistent-audit work, but the persistent
-> backend is not yet wired to the audit store. Docker image is based on
-> Python 3.11; the test matrix covers 3.11 and 3.12.
+> **Audit storage note.** Audit entries are persisted through SQLAlchemy —
+> SQLite for local/dev and the test suite, PostgreSQL for container/Kubernetes
+> deployments — using the `AuditLog` model and the `001_initial` Alembic
+> migration. Each entry is HMAC-SHA256 signed and chained
+> (`prev_entry_hash` → `entry_hash`). The tail lookup that assigns
+> `sequence_number` / `prev_entry_hash` has not been validated under high write
+> concurrency; a single-writer or serialized-append deployment avoids that
+> race. Docker image is based on Python 3.11; the test matrix covers 3.11 and 3.12.
 
 ## Performance Benchmarks
 
