@@ -16,7 +16,7 @@ This project is **pre-production** and **pre-commercial**. The core encryption e
 - No customers, no revenue
 - Azure Key Vault — validated against a real Azure Key Vault test environment
 - HashiCorp Vault — validated against a real local Vault dev server (Docker)
-- AWS KMS — implemented (symmetric + RSA), unit-tested; **real cloud validation pending**
+- AWS KMS — implemented (symmetric + RSA), unit-tested; validated against a real AWS KMS test key (CLI + provider wrap/unwrap roundtrip)
 
 ## Features
 
@@ -141,7 +141,7 @@ Threat model: [docs/security/threat-model.md](docs/security/threat-model.md)
 | Local env | ✅ | ✅ | n/a |
 | Azure Key Vault | ✅ | ✅ | ✅ real Azure test environment |
 | HashiCorp Vault | ✅ | ✅ | ✅ real local Vault dev server (Docker) |
-| AWS KMS | ✅ | ✅ | ⏳ pending |
+| AWS KMS | ✅ | ✅ | ✅ real AWS KMS test key (eu-west-3) |
 
 Cloud validation evidence: [evidence/cloud-validation/](evidence/cloud-validation/)
 

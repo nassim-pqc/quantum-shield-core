@@ -1,14 +1,17 @@
-# AWS KMS Direct CLI Validation Procedure (Not Executed)
+# AWS KMS Direct CLI Validation Procedure (Executed — PASS)
 
-> **Date**: June 2026  
-> **Region**: N/A (validation not executed)  
-> **Key alias**: alias/quantum-shield-test (not created — AWS CLI unavailable)
+> **Date**: 2026-06-07
+> **Region**: eu-west-3
+> **Key alias**: `alias/qshield-test-key`
 
 ---
 
-## Result: **NOT EXECUTED**
+## Result: **EXECUTED — PASS**
 
-Real AWS KMS validation via AWS CLI was **not executed** because AWS CLI is not installed and no AWS credentials are configured in the local environment.
+The AWS CLI direct encrypt/decrypt roundtrip was executed against a real AWS KMS
+test key and **passed** (recovered plaintext `quantum-shield-aws-test`). See
+[`AWS_KMS_REAL_CLOUD_VALIDATION.md`](AWS_KMS_REAL_CLOUD_VALIDATION.md) for the
+full verdict. The procedure steps below remain documented for reproducibility.
 
 ---
 
