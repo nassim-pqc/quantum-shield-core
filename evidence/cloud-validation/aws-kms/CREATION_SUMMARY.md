@@ -65,9 +65,9 @@ cd sdk-go && go vet ./...
 | Go SDK tests | ✅ 4 packages pass (cached) |
 | Go SDK build | ✅ No errors |
 | Go SDK vet | ✅ No errors |
-| AWS CLI availability | ❌ Not installed |
-| AWS credentials | ❌ Not configured |
-| Real AWS KMS validation | ❌ Not executed |
+| AWS CLI availability | ✅ Installed (validation run since) |
+| AWS credentials | ✅ Configured via local AWS CLI profile |
+| Real AWS KMS validation | ✅ Executed — PASS (see `AWS_KMS_REAL_CLOUD_VALIDATION.md`) |
 
 ---
 
@@ -120,20 +120,20 @@ When a developer with AWS credentials is available:
    ```
 6. **Check CloudTrail**: `aws cloudtrail lookup-events ...`
 7. **Update reports** with actual PASS/FAIL results
-8. **Consider fixing the algorithm bug**: The provider hardcodes `RSAES_OAEP_SHA_256` which is incompatible with symmetric KMS keys. Either create an RSA_4096 key, or fix the provider to support `SYMMETRIC_DEFAULT`.
+8. **Algorithm bug — RESOLVED**: the provider previously hardcoded `RSAES_OAEP_SHA_256`. It now defaults to `SYMMETRIC_DEFAULT` (with RSA still supported via `AWS_KMS_ENCRYPTION_ALGORITHM`), validated against a real symmetric AWS KMS test key.
 
 ---
 
-## Key Finding: Encryption Algorithm Bug
+## Key Finding: Encryption Algorithm Bug — RESOLVED
 
-The provider at `providers/kms/aws_kms.py` lines 183, 203 hardcodes:
-```python
-EncryptionAlgorithm="RSAES_OAEP_SHA_256"
-```
+The provider previously hardcoded `EncryptionAlgorithm="RSAES_OAEP_SHA_256"`, which
+is only valid for **asymmetric RSA keys**. For symmetric KMS keys (the AWS default
+when creating a key without `--key-spec`), this caused `InvalidKeyUsageException`.
 
-This is only valid for **asymmetric RSA keys**. For symmetric KMS keys (the default when creating a key without `--key-spec`), this parameter is invalid and will cause `InvalidKeyUsageException`.
-
-**Recommended fix**: Make the algorithm configurable or auto-detect via `DescribeKey`.
+**Fix applied**: the algorithm is now configurable and defaults to `SYMMETRIC_DEFAULT`
+(RSA still supported via `AWS_KMS_ENCRYPTION_ALGORITHM=RSAES_OAEP_SHA_256`). The
+symmetric path was validated against a real AWS KMS test key — see
+[`AWS_KMS_REAL_CLOUD_VALIDATION.md`](AWS_KMS_REAL_CLOUD_VALIDATION.md).
 
 ---
 

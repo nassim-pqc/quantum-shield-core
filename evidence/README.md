@@ -1,6 +1,6 @@
 # ◈ Quantum Shield Core — Proof of Usage
 
-> **Version**: 1.0.0 | **License**: MIT | **Status**: Pre-commercial / Technical Asset
+> **Version**: 1.0.0 | **License**: Proprietary — All rights reserved | **Status**: Pre-production / Technical Asset
 
 ---
 
@@ -62,7 +62,7 @@ ML-KEM-768 is a NIST-standardized post-quantum algorithm (FIPS 203). It generate
 
 ### 2. AES-256-GCM — Authenticated Encryption
 
-The shared secret from ML-KEM is hashed (SHA-256) to derive a symmetric key, which is then used with AES-256-GCM to encrypt the actual data. AES-GCM provides:
+The shared secret from ML-KEM is derived into an AES-256 key using HKDF-SHA256 (with versioned domain separation), which is then used with AES-256-GCM to encrypt the actual data. The business context is also bound as AES-GCM Additional Authenticated Data (AAD). AES-GCM provides:
 - **Confidentiality**: data is encrypted
 - **Integrity**: any tampering is detected (GCM tag)
 - **Authenticity**: Additional Authenticated Data (AAD) binds the ciphertext to a business context
@@ -109,7 +109,8 @@ Quantum Shield Core supports pluggable Key Management Service providers:
 - No external dependencies
 
 ### AWS KMS
-- DEK wrapping via KMS Encrypt/Decrypt (RSAES_OAEP_SHA_256)
+- DEK wrapping via KMS Encrypt/Decrypt (default `SYMMETRIC_DEFAULT`; `RSAES_OAEP_SHA_256` also supported for RSA keys)
+- Validated against a real AWS KMS test key (`SYMMETRIC_DEFAULT`, `eu-west-3`) — see [`cloud-validation/aws-kms/AWS_KMS_REAL_CLOUD_VALIDATION.md`](cloud-validation/aws-kms/AWS_KMS_REAL_CLOUD_VALIDATION.md)
 - Audit key retrieval from encrypted environment blobs
 - Exponential backoff retry with tenacity
 - Configurable via `AWS_KMS_KEY_ID`, `AWS_REGION`, etc.
@@ -290,7 +291,7 @@ pytest tests/ -v --tb=short
 | API endpoints | Complete, documented |
 | Audit trail | Working, HMAC-signed |
 | KMS providers (local) | Working |
-| KMS providers (AWS/Vault/Azure) | Implemented, enterprise-licensed |
+| KMS providers (AWS/Vault/Azure) | Implemented; validated against real AWS KMS / Azure Key Vault / local Vault test environments |
 | Python SDK | Complete, tested |
 | Go SDK | Complete, tested |
 | Docker deployment | Working |
@@ -311,7 +312,7 @@ pytest tests/ -v --tb=short
 
 This is a **pre-commercial technical asset**. It has:
 
-- Working code with 139 passing tests
+- Working code with 204 passing tests
 - Comprehensive documentation
 - CI/CD pipeline
 - Two client SDKs
@@ -331,10 +332,10 @@ The project is ready for **POC, integration, acquisition, or further development
 
 ## Additional Documentation
 
-- [VIDEO_DEMO_SCRIPT.md](VIDEO_DEMO_SCRIPT.md) — 3-minute video script
 - [DEMO_COMMANDS.md](DEMO_COMMANDS.md) — Exact demo commands
-- [SCREENSHOT_CHECKLIST.md](SCREENSHOT_CHECKLIST.md) — Recommended screenshots
 - [STATELESS_EXPLANATION.md](STATELESS_EXPLANATION.md) — Stateless mode explained
-- [BUYER_ONE_PAGER.md](BUYER_ONE_PAGER.md) — Buyer summary document
 - [PROOF_OF_USAGE_REPORT.md](PROOF_OF_USAGE_REPORT.md) — Full proof of usage report
-- [CREATION_SUMMARY.md](CREATION_SUMMARY.md) — Creation summary
+- [cloud-validation/](cloud-validation/) — Real KMS cloud validation evidence (AWS / Azure / Vault)
+
+> Sales/demo materials (video script, buyer one-pager, screenshots) are kept
+> outside the public repository in the private data room.

@@ -12,7 +12,7 @@
 Quantum Shield Core is a post-quantum cryptographic microservice implementing NIST-standardized ML-KEM-768 hybrid encryption. This report presents verifiable evidence of the project's technical maturity, code quality, and readiness for POC, integration, or acquisition.
 
 **Key Findings:**
-- 139 automated tests passing (Python)
+- 204 automated tests passing (Python)
 - Complete API with 9 endpoints
 - Two functional SDKs (Python and Go)
 - Three enterprise KMS provider implementations
@@ -275,7 +275,7 @@ All providers implement the `KMSProvider` interface:
 
 Quantum Shield Core is a **technically mature, pre-commercial post-quantum cryptographic microservice** with:
 
-- Working code and 139 passing tests
+- Working code and 204 passing tests
 - Complete API with documentation
 - Two functional SDKs
 - Enterprise KMS integrations
