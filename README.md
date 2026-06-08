@@ -8,6 +8,12 @@
 
 Post-quantum cryptographic microservice implementing **ML-KEM-768** (FIPS 203 / Kyber768) + **AES-256-GCM** hybrid encryption.
 
+## Demo
+
+![Quantum Shield Core — live API demo](docs/images/demo.gif)
+
+A ~30-second local run: health check, ML-KEM-768 keypair generation, hybrid seal/unseal roundtrip, and the signed, hash-chained audit trail. No audio.
+
 ## Current Status
 
 This project is **pre-production** and **pre-commercial**. The core encryption engine is implemented and tested, but it has not undergone an independent cryptographic audit, has no production deployment track record, and has no customers or revenue. It is suitable for evaluation, POC, and integration testing.
