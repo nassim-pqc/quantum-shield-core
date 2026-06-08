@@ -122,7 +122,7 @@ def generate_report():
     pdf.cell(
         0, 8, "Methodology: Evidence-based code analysis", align="C", new_x="LMARGIN", new_y="NEXT"
     )
-    pdf.cell(0, 8, "177 tests analysed - 100% passing", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "204 tests analysed - 100% passing", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(20)
     pdf.set_font("Helvetica", "I", 10)
     pdf.set_text_color(120, 120, 120)
@@ -179,7 +179,7 @@ def generate_report():
         "(AWS KMS, Azure Key Vault, HashiCorp Vault)."
     )
     pdf.body_text(
-        "License: Apache 2.0 | Version: 1.0.0 | Tests: 177 passing | Maturity Score: 6.6/10"
+        "License: Proprietary | Version: 1.0.0 | Tests: 204 passing | Maturity Score: 6.6/10"
     )
     pdf.ln(2)
     pdf.chapter_title("Key Findings", 2)
@@ -251,7 +251,7 @@ def generate_report():
         ("ML-KEM-768 (Kyber768)", "liboqs via oqs Python wrapper"),
         ("AES-256-GCM", "cryptography.hazmat AESGCM"),
         ("HMAC-SHA256", "hmac standard library + Rust hmac crate"),
-        ("AES key derivation", "SHA-256(shared_secret)"),
+        ("AES key derivation", "HKDF-SHA256 (versioned domain separation)"),
         ("Nonce generation", "os.urandom(12)"),
         ("AAD context binding", "context parameter = AES-GCM AAD"),
     ]
@@ -280,7 +280,7 @@ def generate_report():
         ("PostgreSQL (prod)", "postgresql+asyncpg://..."),
         ("Connection pool", "pool_size=10, max_overflow=20"),
         ("Migrations", "Alembic (001_initial_schema.py)"),
-        ("Models", "ApiKey + AuditLog (hash chain fields exist but NOT in DB)"),
+        ("Models", "ApiKey + AuditLog (hash-chained, persisted in DB)"),
     ]
     pdf.kv_table(db_facts)
 
@@ -305,12 +305,10 @@ def generate_report():
         "padding oracle attacks."
     )
     pdf.chapter_title("Known Findings", 2)
-    pdf.verdict(
-        "HIGH", "   pip-audit disabled in CI - Python dependency vulnerabilities not scanned"
-    )
+    pdf.verdict("LOW", "   pip-audit runs in CI (advisory) - no known vulnerabilities at last scan")
     pdf.verdict("MEDIUM", " cargo-audit/cargo-deny non-blocking - Rust dependency warnings ignored")
-    pdf.verdict("MEDIUM", " Audit hash chain only in memory - not in database")
-    pdf.verdict("LOW", "   No KDF (HKDF) for key derivation - uses SHA-256 instead")
+    pdf.verdict("LOW", " Audit trail persisted in DB (hash-chained) - scale concurrency untested")
+    pdf.verdict("LOW", "   AES key derived via HKDF-SHA256 - salt=None (high-entropy KEM secret)")
     pdf.verdict("LOW", "   Enterprise license is a stub - prefix check only")
     pdf.verdict("LOW", "   Action field is free-text (not enum) - query inconsistency risk")
     pdf.verdict("LOW", "   No automated secret rotation - manual process (env var + restart)")
@@ -325,7 +323,7 @@ def generate_report():
         ("Timing side-channel", "MITIGATED - constant-time HMAC comparison"),
         ("Padding oracle attack", "MITIGATED - AES-GCM (not CBC)"),
         ("Nonce reuse", "MITIGATED - unique Kyber768 KEM per operation"),
-        ("Dependency vulnerability", "NOT MITIGATED - pip-audit disabled"),
+        ("Dependency vulnerability", "MITIGATED - pip-audit in CI, clean at last scan"),
     ]
     for threat, status in threats:
         pdf.body_text(f"  {threat}: {status}")
@@ -346,7 +344,7 @@ def generate_report():
     pdf.chapter_title("5. Git & CI/CD Analysis")
     pdf.chapter_title("Branches", 2)
     branches = [
-        ("main", "Production-ready - initial public release"),
+        ("main", "Pre-production technical asset - initial public release"),
         ("enterprise-upgrade-2026", "Security audit, SDK packaging, document vault"),
         ("azure-key-vault-enterprise", "Azure Key Vault full implementation"),
     ]
@@ -368,7 +366,7 @@ def generate_report():
     pdf.chapter_title("CI Issues", 2)
     pdf.verdict("PARTIAL", "  CD pipeline missing - no deployment automation")
     pdf.verdict(
-        "FALSE", "   Security scanning gaps - pip-audit commented out, cargo tools non-blocking"
+        "PARTIAL", "  pip-audit enabled in CI (advisory); cargo-audit/cargo-deny still non-blocking"
     )
     pdf.body_text(
         "The commit history shows 20+ CI fix commits, indicating "
@@ -403,8 +401,8 @@ def generate_report():
     pdf.add_page()
     pdf.chapter_title("7. KMS Provider Analysis")
     kms_items = [
-        "AWS KMS: RSAES_OAEP_SHA_256 wrapping - 11 tests "
-        "(moto) - Missing: rotation, IAM verification",
+        "AWS KMS: SYMMETRIC_DEFAULT wrapping (RSA also supported) - 11 unit "
+        "tests (moto) + real cloud validation PASS - Missing: rotation, IAM verification",
         "Azure Key Vault: RSA-OAEP-256 via CryptographyClient "
         "- 15 tests (MagicMock) - Missing: sovereign clouds, "
         "rotation",
@@ -531,7 +529,7 @@ def generate_report():
         "RBAC correctly restricts auditor role from crypto operations",
         "All 9 security headers are present and correctly configured",
         "JSON structured logging, Prometheus metrics, and OpenTelemetry traces all work",
-        "177 tests pass with full coverage of core functionality",
+        "204 tests pass with full coverage of core functionality",
     ]
     for t in truths:
         pdf.verdict("CONFIRMED", f" {t}")

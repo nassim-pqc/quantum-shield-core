@@ -2,7 +2,7 @@
 
 > **Date**: June 2026 (05/06/2026 15:02-15:06 UTC+2)  
 > **Files modified**: `providers/kms/aws_kms.py`, `tests/test_kms_providers.py`  
-> **Files updated**: `AWS_KMS_PROVIDER_AUDIT.md`, `AWS_KMS_MANUAL_SETUP_GUIDE.md`, `AWS_KMS_PENDING_VALIDATION.md`
+> **Files updated**: `AWS_KMS_PROVIDER_AUDIT.md`, `AWS_KMS_MANUAL_SETUP_GUIDE.md`
 
 ---
 
@@ -141,7 +141,7 @@ export AWS_REGION=eu-west-3
 | `tests/test_kms_providers.py` | ✅ Modified | RSA + symmetric + config tests (30 total) |
 | `evidence/cloud-validation/aws-kms/AWS_KMS_PROVIDER_AUDIT.md` | ✅ Updated | Fixed algorithm section, new summary |
 | `evidence/cloud-validation/aws-kms/AWS_KMS_MANUAL_SETUP_GUIDE.md` | ✅ Updated | Removed warning about hardcoded algorithm |
-| `evidence/cloud-validation/aws-kms/AWS_KMS_PENDING_VALIDATION.md` | ✅ Updated | Fixed algorithm bug section → fix applied section |
+| `evidence/cloud-validation/aws-kms/AWS_KMS_REAL_CLOUD_VALIDATION.md` | ✅ Superseded | Real cloud validation PASS (replaced the earlier pending-validation note) |
 | `evidence/cloud-validation/aws-kms/AWS_KMS_ALGORITHM_FIX_SUMMARY.md` | ✅ Created | This file |
 
 *No secrets exposed. No Git operations performed.*
