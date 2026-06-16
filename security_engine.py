@@ -119,7 +119,15 @@ class SecurityEngine:
         if not self.kms.get_audit_key(self.active_key_version):
             raise ValueError(f"Active audit key '{active_key_version}' not found in KMS.")
 
-        # Initialize Rust engine for HMAC/AES-GCM if available
+        # Optional Rust acceleration for the HMAC audit path.
+        #
+        # Deliberately gated to the single-key `audit_key=` construction path.
+        # The Rust engine holds exactly one key and emits a fixed
+        # ``key_version="v1"``; it has no view of the KMS key catalogue. Enabling
+        # it for the KMS-backed path would therefore (a) break verification of
+        # rotated keys, and (b) mislabel signatures whenever the active version
+        # is not ``v1``. The KMS path keeps the pure-Python signer/verifier,
+        # which is rotation-aware and already uses a constant-time comparison.
         self._rust_engine = None
         if _RUST_ENGINE_AVAILABLE and audit_key is not None:
             try:

@@ -366,8 +366,13 @@ class TestRustFallbackLogging:
             assert forbidden not in (record.__dict__.get("operation") or "")
 
     def test_python_path_works_without_rust(self, engine: SecurityEngine):
-        """With no Rust engine loaded, seal/unseal and audit must still pass."""
-        assert engine._rust_engine is None
+        """With no Rust engine loaded, seal/unseal and audit must still pass.
+
+        Force the pure-Python path regardless of whether the optional Rust
+        wheel is installed in the test environment, so this exercises the
+        canonical fallback deterministically.
+        """
+        engine._rust_engine = None
         pub, priv = engine.generate_keypair()
         sealed = engine.encrypt_hybrid(pub, b"hello", b"ctx")
         assert (
