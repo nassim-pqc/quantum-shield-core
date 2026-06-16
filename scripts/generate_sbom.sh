@@ -104,11 +104,11 @@ cat > "$OUTPUT_FILE" << SPDXEOF
       "name": "quantum-shield-core",
       "versionInfo": "1.0.0",
       "supplier": "Organization: Quantum Shield",
-      "downloadLocation": "https://github.com/quantum-shield/core",
+      "downloadLocation": "https://github.com/nassim-pqc/quantum-shield-core",
       "packageFileName": "quantum-shield-core",
       "licenseConcluded": "LicenseRef-Proprietary",
       "licenseDeclared": "LicenseRef-Proprietary",
-      "copyrightText": "Copyright (c) 2025 Quantum Shield",
+      "copyrightText": "Copyright (c) 2026 Quantum Shield Core",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -130,7 +130,7 @@ cat > "$OUTPUT_FILE" << SPDXEOF
     {
       "SPDXID": "SPDXRef-Package-liboqs",
       "name": "liboqs",
-      "versionInfo": "0.14.0",
+      "versionInfo": "0.14.1",
       "supplier": "Organization: Open Quantum Safe",
       "downloadLocation": "https://github.com/open-quantum-safe/liboqs",
       "licenseConcluded": "MIT",

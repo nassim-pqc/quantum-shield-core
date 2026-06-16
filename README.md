@@ -30,7 +30,7 @@ This project is **pre-production** and **pre-commercial**. The core encryption e
 - AES-256-GCM symmetric encryption (via pyca/cryptography), AES key derived via HKDF-SHA256
 - Stateless architecture — no private keys stored server-side
 - Signed audit trail — append-only, HMAC-SHA256 with key rotation + SHA-256 hash-chain links, persisted via SQLAlchemy (SQLite dev / PostgreSQL deploy)
-- Rust core engine — partial acceleration path for HMAC/audit (PyO3 bindings, `panic = "abort"` in release). AES-GCM is performed by the canonical Python path
+- Rust core engine — **opt-in** acceleration path for the HMAC/audit signer (PyO3 bindings, `panic = "abort"` in release). It is enabled only when the engine is built with a single audit key (`SecurityEngine(audit_key=...)`); the default KMS-backed bootstrap uses the rotation-aware, constant-time Python signer. AES-GCM is always performed by the canonical Python path
 - Pluggable KMS providers — local env, AWS KMS, HashiCorp Vault, Azure Key Vault
 - Observability — Prometheus metrics, OpenTelemetry tracing, JSON structured logging
 - Rate limiting — per-IP rate limiting on authenticated API endpoints (`/health` and `/metrics` are unlimited)
@@ -64,7 +64,7 @@ Full deploy guide: [docs/live-demo-deployment.md](docs/live-demo-deployment.md)
 | Auth | SQLAlchemy + SHA-256 | API key hashing, RBAC |
 | KEM | liboqs-python | ML-KEM-768 key encapsulation |
 | AEAD | pyca/cryptography | AES-256-GCM with AAD, HKDF-SHA256 key derivation |
-| Rust | PyO3 | Partial acceleration path for HMAC/audit (when built) |
+| Rust | PyO3 | Opt-in HMAC/audit signer acceleration (single-key builds only) |
 | Audit | SQLAlchemy store (SQLite / PostgreSQL) | HMAC-SHA256 signed, append-only, SHA-256 hash-chain links |
 | Metrics | Prometheus | Operations count, latency |
 | Tracing | OpenTelemetry | W3C trace context, OTLP export |
@@ -113,7 +113,7 @@ Full API docs: [docs/API_GUIDE.md](docs/API_GUIDE.md)
 - **Transport**: HSTS, CSP, X-Frame-Options, X-Content-Type-Options enforced
 - **Audit**: HMAC-SHA256 signed logs with key versioning
 - **Side-channel awareness**: Constant-time HMAC comparison, opaque unseal errors (not verified by independent audit)
-- **Memory safety**: Rust borrow checker, `panic = "abort"` in release
+- **Memory safety**: optional Rust signer path uses the borrow checker, `panic = "abort"` in release (see opt-in note under Features)
 - **Container hardening**: [docs/CONTAINER_HARDENING.md](docs/CONTAINER_HARDENING.md)
 
 Threat model: [docs/security/threat-model.md](docs/security/threat-model.md)
